@@ -55,6 +55,8 @@ int ODOM_TYPE;
 int DRONE_ID;
 double SINGLE_OFFSET;
 
+int USE_EXTERNAL_TRACKER;
+
 template <typename T>
 T readParam(ros::NodeHandle &n, std::string name)
 {
@@ -220,5 +222,7 @@ void readParameters(std::string config_file)
     ODOM_TYPE = fsSettings["odometry_type"];
     DRONE_ID = fsSettings["drone_id"];
     SINGLE_OFFSET = fsSettings["single_offset"];
+
+    USE_EXTERNAL_TRACKER = fsSettings["use_external_front_end"];
     fsSettings.release();
 }

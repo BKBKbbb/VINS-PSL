@@ -177,7 +177,7 @@ void Estimator::processMeasurements()
                     break;
                 else
                 {
-                    printf("wait for imu ... \n");
+                    printf("wait for imu ... ,td is %lf\n", td);
                     if (! MULTIPLE_THREAD)
                         return;
                     std::chrono::milliseconds dura(5);

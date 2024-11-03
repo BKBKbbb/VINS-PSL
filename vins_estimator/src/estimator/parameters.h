@@ -72,6 +72,8 @@ extern int FLOW_BACK;
 extern int ODOM_TYPE;
 extern int DRONE_ID;
 extern double SINGLE_OFFSET;
+
+extern int USE_EXTERNAL_TRACKER;
 void readParameters(std::string config_file);
 
 enum SIZE_PARAMETERIZATION

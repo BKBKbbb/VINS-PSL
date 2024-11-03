@@ -1,0 +1,4 @@
+<launch>
+	<node pkg="superpoint" type="feature_match_node.py" name="superpoint" output="screen">
+	</node>
+</launch>
