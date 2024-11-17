@@ -2,9 +2,16 @@ import cv2
 import copy
 import numpy as np 
 from time import time
+import pycuda.driver as cuda
 
-from utils.feature_process import PointTracker
-from utils.feature_process import SuperPointFrontend_torch, SuperPointFrontend
+#from utils.feature_process import PointTracker
+#from utils.feature_process import SuperPointFrontend_torch, SuperPointFrontend
+from utils.feature_process_trt import PointTracker
+from utils.feature_process_trt import SuperPointFrontend_TensorRT
+
+cuda.init()
+cfx = cuda.Device(0).make_context()
+
 run_time = 0.0
 match_time = 0.0
 
@@ -65,14 +72,21 @@ class VisualTracker:
 		self.weights_path = opts.weights_path
 		self.stereo = opts.stereo
 		self.use_sp_in_stereo = opts.use_sp_in_stereo
+		self.trt_engine_path = opts.trt_engine_path
 
 		# SuperPointFrontend_torch SuperPointFrontend
-		self.SuperPoint_Ghostnet = SuperPointFrontend_torch(
-			weights_path = self.weights_path, 
+		# self.SuperPoint_Ghostnet = SuperPointFrontend_torch(
+		# 	weights_path = self.weights_path, 
+		# 	nms_dist = self.nms_dist,
+		# 	conf_thresh = self.conf_thresh,
+		# 	cuda = self.cuda
+		# 	)
+		self.SuperPoint_Ghostnet = SuperPointFrontend_TensorRT(
+			engine_path = self.trt_engine_path, 
 			nms_dist = self.nms_dist,
 			conf_thresh = self.conf_thresh,
-			cuda = self.cuda
 			)
+
 	
 		self.tracker = PointTracker(nn_thresh=self.nn_thresh)
 
@@ -164,7 +178,8 @@ class VisualTracker:
 	def readImage(self, new_img, cur_time):
 
 		assert(new_img[0].ndim==2 and new_img[0].shape[0]==self.height and new_img[0].shape[1]==self.width), "Frame: provided image has not the same size as the camera model or image is not grayscale"
-		
+		global cfx
+		cfx.push()
 		self.new_frame = new_img[0]
 		self.cur_time = cur_time
 
@@ -202,7 +217,9 @@ class VisualTracker:
 		print("current keypoint size is :", keyPoint_size)
 
 		if keyPoint_size < self.max_cnt-50:
+			cfx.push()
 			self.curframe_['keyPoint'], self.curframe_['descriptor'], heatmap = self.SuperPoint_Ghostnet.run(self.new_frame, conf_thresh=0.01)
+			cfx.pop()
 			self.conf_thresh_type = 1
 			keyPoint_size = self.curframe_['keyPoint'].shape[1]
 			print("next keypoint size is ", keyPoint_size)
@@ -296,7 +313,9 @@ class VisualTracker:
 						right_conf_thresh = 0.01
 
 					right_start_time = time()
+					cfx.push()
 					self.rightframe_['keyPoint'], self.rightframe_['descriptor'], right_heatmap = self.SuperPoint_Ghostnet.run(self.new_frame_right, conf_thresh = right_conf_thresh)
+					cfx.pop()
 					keyPoint_size = self.rightframe_['keyPoint'].shape[1]
 					print("right image superpoint run time is :{}ms".format((time() - right_start_time)*1000.))
 
@@ -374,6 +393,7 @@ class VisualTracker:
 		self.pre_time = self.cur_time
 		self.prev_un_pts_map = copy.deepcopy(self.cur_un_pts_map)
 		self.preframe_ = copy.deepcopy(self.curframe_)
+		cfx.pop()
 
 	def trackShow(self, image0, image1, heatmap):
 		draw_feature_matches = []

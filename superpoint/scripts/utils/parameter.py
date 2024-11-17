@@ -50,10 +50,14 @@ def readParameters():
         help='Do not display images to screen. Useful if running remotely (default: False).')
 
     parser.add_argument('--stereo', action='store_true', 
-        help='Input stereo image, default is true.')
+        help='Input stereo image, default is fasle.')
     
     parser.add_argument('--use_sp_in_stereo', action='store_true', 
         help='Use superpoint for stereo match.(default: False).')
+    
+    parser.add_argument('--trt_engine_path', type=str, default="sp_model_fp16.engine", 
+        help='Use TensorRT engine.(default: sp_model_fp16.engine).')
+    
     opts = parser.parse_args()
 
     return opts

@@ -62,6 +62,7 @@ if int(cv2.__version__[0]) < 3: # pragma: no cover
   print('Warning: OpenCV 3 is not installed')
 
 
+#pytorch模型
 class SuperPointFrontend_torch(object):
   """ Wrapper around pytorch net to help with pre and post image processing. """
   def __init__(self, weights_path, nms_dist, conf_thresh,
@@ -170,6 +171,7 @@ class SuperPointFrontend_torch(object):
     semi = semi.data.cpu().numpy().squeeze()
     # print("forword time is :")
     # print(time()-start_time)
+
     # --- Process points.
     dense = np.exp(semi) # Softmax.
     dense = dense / (np.sum(dense, axis=0)+.00001) # Should sum to 1.

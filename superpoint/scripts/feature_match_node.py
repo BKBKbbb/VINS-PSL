@@ -5,7 +5,6 @@ import cv2
 
 import copy
 import rospy
-import torch
 
 import numpy as np
 from cv_bridge import CvBridge
