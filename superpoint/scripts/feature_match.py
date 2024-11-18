@@ -209,7 +209,6 @@ class VisualTracker:
 		self.curframe_['keyPoint'], self.curframe_['descriptor'], heatmap = self.SuperPoint_Ghostnet.run(self.new_frame, conf_thresh=0.015)
 		self.conf_thresh_type = 0
 
-		global run_time
 		run_time = ( time()-start_time )*1000.0
 		print("left image superpoint run time is :{}ms".format(run_time))
 
@@ -217,9 +216,7 @@ class VisualTracker:
 		print("current keypoint size is :", keyPoint_size)
 
 		if keyPoint_size < self.max_cnt-50:
-			cfx.push()
 			self.curframe_['keyPoint'], self.curframe_['descriptor'], heatmap = self.SuperPoint_Ghostnet.run(self.new_frame, conf_thresh=0.01)
-			cfx.pop()
 			self.conf_thresh_type = 1
 			keyPoint_size = self.curframe_['keyPoint'].shape[1]
 			print("next keypoint size is ", keyPoint_size)
@@ -243,13 +240,17 @@ class VisualTracker:
 							).astype(int)
 			global match_time
 			match_time = (time()-start_time) * 1000.0
-			print("match time is :{}ms".format(match_time))
+			print("left match time is :{}ms".format(match_time))
 			print("match size is :", feature_matches.shape[1])
 			######################## 保证匹配得到的lineID相同 #####################
+			start_time = time()
 			for k in range(feature_matches.shape[1]):
 				self.curframe_['PointID'][feature_matches[0,k]] = self.preframe_['PointID'][feature_matches[1,k]]
+			run_time = ( time()-start_time )*1000.0
+			print("left image 保证匹配得到的lineID相同 run time is :{}ms".format(run_time))
 
 			################### 将跟踪的点与没跟踪的点进行区分 #####################
+			start_time = time()
 			vecPoint_new = np.zeros((3,0))
 			vecPoint_tracked = np.zeros((3,0))
 			PointID_new = []
@@ -268,9 +269,10 @@ class VisualTracker:
 					vecPoint_tracked = np.append(vecPoint_tracked, self.curframe_['keyPoint'][:,i:i+1], axis=1)
 					PointID_tracked.append(self.curframe_['PointID'][i])
 					Descr_tracked = np.append(Descr_tracked, self.curframe_['descriptor'][:,i:i+1], axis=1)
-
+			run_time = ( time()-start_time )*1000.0
+			print("left image 将跟踪的点与没跟踪的点进行区分 run time is :{}ms".format(run_time))
 			########### 跟踪的点特征少于150了，那就补充新的点特征 ###############
-
+			start_time = time()
 			diff_n = self.max_cnt - vecPoint_tracked.shape[1]
 			if diff_n > 0:#新增的特征点数量大于需要补充的特征点数量,只push diff_n个特征点
 				if vecPoint_new.shape[1] >= diff_n:
@@ -287,11 +289,19 @@ class VisualTracker:
 			self.curframe_['keyPoint'] = vecPoint_tracked
 			self.curframe_['PointID'] = PointID_tracked
 			self.curframe_['descriptor'] = Descr_tracked
+			run_time = ( time()-start_time )*1000.0
+			print("left image 跟踪的点特征少于150了,那就补充新的点特征 run time is :{}ms".format(run_time))
 		#经过以上操作keyPoint的排序为[<成功关联的特征点>---<新增的特征点>]
 		#去畸变
+		start_time = time()
 		self.curframe_['unPts']  = self.undistortedLineEndPoints(self.curframe_['keyPoint'] * self.scale, self.camera)
+		run_time = ( time()-start_time )*1000.0
+		print("left image 去畸变 run time is :{}ms".format(run_time))
 		#计算特征点速度
+		start_time = time()
 		self.pts_velocity, self.cur_un_pts_map= self.calPtsVelocity(self.curframe_["PointID"], self.curframe_['unPts'], self.prev_un_pts_map)
+		run_time = ( time()-start_time )*1000.0
+		print("left image 计算特征点速度 run time is :{}ms".format(run_time))
 
 		#################################### 处理右目 ####################################
 		if new_img[1] is not None:
@@ -313,9 +323,7 @@ class VisualTracker:
 						right_conf_thresh = 0.01
 
 					right_start_time = time()
-					cfx.push()
 					self.rightframe_['keyPoint'], self.rightframe_['descriptor'], right_heatmap = self.SuperPoint_Ghostnet.run(self.new_frame_right, conf_thresh = right_conf_thresh)
-					cfx.pop()
 					keyPoint_size = self.rightframe_['keyPoint'].shape[1]
 					print("right image superpoint run time is :{}ms".format((time() - right_start_time)*1000.))
 
@@ -334,11 +342,17 @@ class VisualTracker:
 							self.rightframe_['PointID'].append(-1)
 
 						#左右目特征点描述子匹配
+						start_time = time()
 						feature_matches = self.tracker.nn_match_two_way( 
 												self.rightframe_['descriptor'], 
 												self.curframe_['descriptor'], 
 												self.nn_thresh
 										).astype(int)
+						match_time = (time()-start_time) * 1000.0
+						print("right match time is :{}ms".format(match_time))
+						print("match size is :", feature_matches.shape[1])
+
+						start_time = time()
 						for k in range(feature_matches.shape[1]):
 							self.rightframe_['PointID'][feature_matches[0, k]] = self.curframe_['PointID'][feature_matches[1, k]]
 					
@@ -355,11 +369,12 @@ class VisualTracker:
 						self.rightframe_['keyPoint'] = vecPoint_tracked
 						self.rightframe_['PointID'] = PointID_tracked
 						self.rightframe_['descriptor'] = Descr_tracked
+						run_time = ( time()-start_time )*1000.0
+						print("right image 分配ID+跟踪与未跟踪特征点分离 run time is :{}ms".format(run_time))
 				else:
 					#采用光流追踪
 					
-					lk_params = dict(winSize=(15, 15),
-                 maxLevel=2)
+					lk_params = dict(winSize=(15, 15),maxLevel=2)
 					#光流
 					preImage = (self.curframe_['image'] * 255.).astype('uint8')
 					nextImage = (self.preframe_['image'] * 255.).astype('uint8')
@@ -379,10 +394,15 @@ class VisualTracker:
 					self.right_extract_success = True
 				if self.right_extract_success:
 					#去畸变
+					start_time = time()
 					self.rightframe_['unPts'] = self.undistortedLineEndPoints(self.rightframe_['keyPoint'] * self.scale, self.camera_right)
+					run_time = ( time()-start_time )*1000.0
+					print("right image 去畸变 run time is :{}ms".format(run_time))
 					#计算特征点速度
+					start_time = time()
 					self.pts_right_velocity, self.cur_un_right_pts_map= self.calPtsVelocity(self.rightframe_['PointID'], self.rightframe_['unPts'], self.prev_un_right_pts_map)
-				
+					run_time = ( time()-start_time )*1000.0
+					print("right image 计算特征点速度 run time is :{}ms".format(run_time))
 			self.prev_un_right_pts_map = copy.deepcopy(self.cur_un_right_pts_map)
 
 		########### 绘制跟踪可视化结果 ###############

@@ -2,6 +2,203 @@ import numpy as np
 import cv2
 from utils.sp_tensorrt import SuperPointNet_TensorRT
 from time import time
+from numba import jit, int32, float32, prange
+
+@jit(nopython=True, cache=True)
+def nms_fast_numba(in_corners, H, W, dist_thresh):
+    """
+    Fast Non-Maximum Suppression (NMS) using numba for acceleration.
+    Inputs:
+      in_corners - 3xN numpy array with corners [x_i, y_i, confidence_i]^T.
+      H - Image height.
+      W - Image width.
+      dist_thresh - Distance to suppress, measured as an infinity norm distance.
+    Returns:
+      nmsed_corners - 3xN numpy matrix with surviving corners.
+      nmsed_inds - N length numpy vector with surviving corner indices.
+    """
+    # Initialize grid and indices
+    grid = np.zeros((H, W), dtype=int32)  # Track NMS data
+    inds = np.zeros((H, W), dtype=int32)  # Store indices of points
+    
+    # Sort by confidence and round to nearest int
+    inds1 = np.argsort(-in_corners[2, :])
+    corners = in_corners[:, inds1].astype(np.float32)
+    rcorners = np.rint(corners[:2, :]).astype(int32)  # Rounded corners using np.rint
+    
+    # Check for edge case of 0 or 1 corners
+    if rcorners.shape[1] == 0:
+        return np.zeros((3, 0), dtype=np.float32), np.zeros(0, dtype=int32)
+    if rcorners.shape[1] == 1:
+        # Manually construct the output instead of np.vstack
+        out = np.zeros((3, 1), dtype=np.float32)
+        out[:2, 0] = rcorners[:, 0].astype(np.float32)  # Ensure type consistency
+        out[2, 0] = float32(in_corners[2, inds1[0]])  # Explicit type conversion
+        return out, np.zeros((1), dtype=int32)
+    
+    # Initialize the grid
+    for i in range(rcorners.shape[1]):
+        x, y = rcorners[0, i], rcorners[1, i]
+        grid[y, x] = 1
+        inds[y, x] = i
+
+    # Pad the grid to suppress points near borders
+    pad = dist_thresh
+    padded_grid = np.zeros((H + 2 * pad, W + 2 * pad), dtype=int32)
+    padded_grid[pad:pad + H, pad:pad + W] = grid
+    grid = padded_grid
+
+    # Iterate through points, suppress neighborhood
+    count = 0
+    for i in range(rcorners.shape[1]):
+        x, y = rcorners[0, i], rcorners[1, i]
+        pt_x, pt_y = x + pad, y + pad
+        if grid[pt_y, pt_x] == 1:  # If not yet suppressed
+            grid[pt_y - pad:pt_y + pad + 1, pt_x - pad:pt_x + pad + 1] = 0
+            grid[pt_y, pt_x] = -1
+            count += 1
+    
+    # Get all surviving -1's
+    keepy, keepx = np.where(grid == -1)
+    keepy, keepx = keepy - pad, keepx - pad
+
+    # Replace multi-array indexing with loop-based indexing
+    inds_keep = np.zeros(keepy.shape[0], dtype=int32)
+    for i in range(keepy.shape[0]):
+        inds_keep[i] = inds[keepy[i], keepx[i]]
+
+    # Prepare the output
+    out = corners[:, inds_keep]
+    values = out[-1, :]
+    inds2 = np.argsort(-values)
+    out = out[:, inds2]
+    out_inds = inds1[inds_keep[inds2]].astype(int32)
+    return out.astype(np.float32), out_inds
+
+@jit(nopython=True, cache=True, parallel=True, fastmath=True)
+def numba_grid_sample(input_array, grid, align_corners=True):
+    """
+    Numba implementation of torch.nn.functional.grid_sample.
+
+    Parameters:
+        input_array (ndarray): Input array of shape (N, C, H, W).
+        grid (ndarray): Grid array of shape (N, H_out, W_out, 2).
+        mode (str): Interpolation mode, 'bilinear' or 'nearest'.
+        padding_mode (str): Padding mode, 'zeros', 'border', or 'reflection'.
+        align_corners (bool): Whether to align corners.
+
+    Returns:
+        ndarray: Output sampled array of shape (N, C, H_out, W_out).
+    """
+    N, C, H, W = input_array.shape
+    _, H_out, W_out, _ = grid.shape
+
+    # Precompute scaling factors
+    x_scale = (W - 1) / 2 if align_corners else W / 2
+    y_scale = (H - 1) / 2 if align_corners else H / 2
+
+    output = np.zeros((N, C, H_out, W_out), dtype=input_array.dtype)
+
+    for n in prange(N):  # Parallelize batch dimension
+        for h in range(H_out):
+            for w in range(W_out):
+                # Normalize grid to input array coordinates
+                gx, gy = grid[n, h, w, 0], grid[n, h, w, 1]
+                x = gx * x_scale + x_scale
+                y = gy * y_scale + y_scale
+
+                # Calculate indices for bilinear interpolation
+                x0 = int(np.floor(x))
+                x1 = x0 + 1
+                y0 = int(np.floor(y))
+                y1 = y0 + 1
+
+                # Compute weights
+                wx0, wx1 = x1 - x, x - x0
+                wy0, wy1 = y1 - y, y - y0
+
+                # Clip indices for border padding
+                x0 = max(0, min(W - 1, x0))
+                x1 = max(0, min(W - 1, x1))
+                y0 = max(0, min(H - 1, y0))
+                y1 = max(0, min(H - 1, y1))
+
+                # Perform bilinear interpolation
+                for c in range(C):
+                    v00 = input_array[n, c, y0, x0]
+                    v01 = input_array[n, c, y0, x1]
+                    v10 = input_array[n, c, y1, x0]
+                    v11 = input_array[n, c, y1, x1]
+
+                    output[n, c, h, w] = (
+                        wx0 * wy0 * v00 +
+                        wx0 * wy1 * v10 +
+                        wx1 * wy0 * v01 +
+                        wx1 * wy1 * v11
+                    )
+
+    return output
+#批量为1，grid的H为1的优化版本
+@jit(nopython=True, cache=True, parallel=True, fastmath=True)
+def numba_grid_sample_optimized(input_array, grid, align_corners=True):
+    """
+    Optimized Numba implementation of grid_sample.
+
+    Parameters:
+        input_array (ndarray): Input array of shape (1, C, H, W).
+        grid (ndarray): Grid array of shape (1, 1, W_out, 2).
+        align_corners (bool): Whether to align corners.
+
+    Returns:
+        ndarray: Output sampled array of shape (N, C, H_out, W_out).
+    """
+
+    N, C, H, W = input_array.shape
+    _, H_out, W_out, _ = grid.shape
+
+    # Precompute scaling factors
+    x_scale = (W - 1) / 2 if align_corners else W / 2
+    y_scale = (H - 1) / 2 if align_corners else H / 2
+
+    output = np.zeros((N, C, H_out, W_out), dtype=input_array.dtype)
+
+    for w in prange(W_out):
+        # Normalize grid to input array coordinates
+        gx, gy = grid[0, 0, w, 0], grid[0, 0, w, 1]
+        x = gx * x_scale + x_scale
+        y = gy * y_scale + y_scale
+
+        # Calculate indices for bilinear interpolation
+        x0 = int(np.floor(x))
+        x1 = x0 + 1
+        y0 = int(np.floor(y))
+        y1 = y0 + 1
+
+        # Compute weights
+        wx0, wx1 = x1 - x, x - x0
+        wy0, wy1 = y1 - y, y - y0
+
+        # Clip indices for border padding
+        x0 = max(0, min(W - 1, x0))
+        x1 = max(0, min(W - 1, x1))
+        y0 = max(0, min(H - 1, y0))
+        y1 = max(0, min(H - 1, y1))
+
+        # Perform bilinear interpolation
+        for c in range(C):
+            v00 = input_array[0, c, y0, x0]
+            v01 = input_array[0, c, y0, x1]
+            v10 = input_array[0, c, y1, x0]
+            v11 = input_array[0, c, y1, x1]
+
+            output[0, c, 0, w] = (
+                wx0 * wy0 * v00 +
+                wx0 * wy1 * v10 +
+                wx1 * wy0 * v01 +
+                wx1 * wy1 * v11
+            )
+
+    return output
 
 #tensorrt模型
 class SuperPointFrontend_TensorRT(object):
@@ -178,12 +375,12 @@ class SuperPointFrontend_TensorRT(object):
     xs, ys = np.where(heatmap >= conf_thresh) # Confidence threshold.
     if len(xs) == 0:
       return np.zeros((3, 0)), None, None
-    pts = np.zeros((3, len(xs))) # Populate point data sized 3xN.
+    pts = np.zeros((3, len(xs)),dtype=np.float32) # Populate point data sized 3xN.
     pts[0, :] = ys
     pts[1, :] = xs
     pts[2, :] = heatmap[xs, ys]
     start_time = time()
-    pts, _ = self.nms_fast(pts, H, W, dist_thresh=self.nms_dist) # Apply NMS.
+    pts, _ = nms_fast_numba(pts, H, W, dist_thresh=self.nms_dist) # Apply NMS.
     print("nms_fast time is {}ms:".format((time() - start_time)*1000.))
 
     inds = np.argsort(pts[2,:])
@@ -212,7 +409,9 @@ class SuperPointFrontend_TensorRT(object):
       samp_pts = np.expand_dims(samp_pts, axis=0)
       samp_pts = samp_pts.astype(np.float32)
       start_time = time()
-      desc = self.numpy_grid_sample(coarse_desc, samp_pts) #(1, 256, 1, -1)
+      #desc = self.numpy_grid_sample(coarse_desc, samp_pts) #(1, 256, 1, -1)
+      #desc = numba_grid_sample(coarse_desc, samp_pts)
+      desc = numba_grid_sample_optimized(coarse_desc, samp_pts)
       print("grid_sample time is {}ms:".format((time() - start_time)*1000.))
       desc = desc.reshape(D, -1)
       desc /= np.linalg.norm(desc, axis=0)[np.newaxis, :]
