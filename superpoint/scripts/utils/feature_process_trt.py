@@ -139,8 +139,8 @@ def numba_grid_sample(input_array, grid, align_corners=True):
 
     return output
 #批量为1，grid的H为1的优化版本
-@jit(nopython=True, cache=True, parallel=True, fastmath=True)
-def numba_grid_sample_optimized(input_array, grid, align_corners=True):
+@jit(nopython=True, cache=True, fastmath=True)
+def numba_grid_sample_optimized(input_array, grid, align_corners):
     """
     Optimized Numba implementation of grid_sample.
 
@@ -162,7 +162,7 @@ def numba_grid_sample_optimized(input_array, grid, align_corners=True):
 
     output = np.zeros((N, C, H_out, W_out), dtype=input_array.dtype)
 
-    for w in prange(W_out):
+    for w in range(W_out):
         # Normalize grid to input array coordinates
         gx, gy = grid[0, 0, w, 0], grid[0, 0, w, 1]
         x = gx * x_scale + x_scale
@@ -207,10 +207,24 @@ class SuperPointFrontend_TensorRT(object):
     self.conf_thresh = conf_thresh
     self.cell = 8 # Size of each output cell. Keep this fixed.
     self.border_remove = 4 # Remove points this close to the border.
-    #load the trt engine
     self.trt_model = SuperPointNet_TensorRT(engine_path)
-    print('==> Load tensorRT engine Successfully.')
 
+  # 异步线程中调用初始化
+  def async_init(self):
+    #load the trt engine
+    self.trt_model.engine_init()
+    print('==> Load tensorRT engine Successfully.')
+    #precompile for numba-func
+    # dummy_pts = np.zeros((3,1), dtype=np.float32)
+    # H = 240
+    # W = 320
+    # nms_fast_numba(dummy_pts, H, W, dist_thresh=self.nms_dist)
+    # dummy_desc = np.zeros((1, 256, 30, 40), dtype=np.float32)
+    # dummy_samp_pts = np.zeros((1, 1, 10, 2), dtype=np.float32)
+    # numba_grid_sample_optimized(dummy_desc, dummy_samp_pts, align_corners=True)
+
+    # print("==> Precompile for numba function Successfully.")
+     
   def nms_fast(self, in_corners, H, W, dist_thresh):
     """
     NOTE: The NMS first rounds points to integers, so NMS distance might not
@@ -392,8 +406,9 @@ class SuperPointFrontend_TensorRT(object):
     toremove = np.logical_or(toremoveW, toremoveH)
     pts = pts[:, ~toremove]
 
-    if conf_thresh == 0.015 and pts.shape[1] < 100:
-      return pts, _, _
+    # ??
+    # if conf_thresh == 0.015 and pts.shape[1] < 100:
+    #   return pts, _, _
 
     # --- Process descriptor.
     D = coarse_desc.shape[1]
@@ -409,9 +424,10 @@ class SuperPointFrontend_TensorRT(object):
       samp_pts = np.expand_dims(samp_pts, axis=0)
       samp_pts = samp_pts.astype(np.float32)
       start_time = time()
+      #print("coarse_desc's shape is {}, type is {}, samp_pts's shape is {}, type is {}".format(coarse_desc.shape, coarse_desc.dtype, samp_pts.shape, samp_pts.dtype))
       #desc = self.numpy_grid_sample(coarse_desc, samp_pts) #(1, 256, 1, -1)
       #desc = numba_grid_sample(coarse_desc, samp_pts)
-      desc = numba_grid_sample_optimized(coarse_desc, samp_pts)
+      desc = numba_grid_sample_optimized(coarse_desc, samp_pts, align_corners=True)
       print("grid_sample time is {}ms:".format((time() - start_time)*1000.))
       desc = desc.reshape(D, -1)
       desc /= np.linalg.norm(desc, axis=0)[np.newaxis, :]

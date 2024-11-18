@@ -13,17 +13,28 @@ from sensor_msgs.msg import Image
 from geometry_msgs.msg import Point32
 from sensor_msgs.msg import PointCloud
 from sensor_msgs.msg import ChannelFloat32
-from queue import Queue
+import queue
 import threading
-
 
 from time import time
 from feature_match import VisualTracker
 from utils.parameter import read_image, readParameters
 from utils.camera_model import PinholeCamera
 
+import pycuda.driver as cuda
+cuda.init()
+cfx = cuda.Device(0).make_context()
+
 init_pub = False
 count_frame = 0
+
+def clear_queue(q):
+    while not q.empty():
+        try:
+            q.get_nowait()
+        except queue.Empty:
+            break
+
 class SPFrontEndNode:
     def __init__(self):
         rospy.init_node('superpoint_frontend_node', anonymous=True)
@@ -46,8 +57,8 @@ class SPFrontEndNode:
         self.bridge = CvBridge()
         self.m_lock = threading.Lock()#img buffer 互斥锁
         
-        self.left_image_queue = Queue() #img队列
-        self.right_image_queue = Queue()
+        self.left_image_queue = queue.Queue() #img队列
+        self.right_image_queue = queue.Queue()
 
         self.left_image_sub = rospy.Subscriber("/camera/infra1/image_rect_raw", Image, self.left_image_callback, queue_size=1000)
         if self.FeatureTracker.stereo:
@@ -79,6 +90,19 @@ class SPFrontEndNode:
             self.right_image_queue.put((img_msg.header, put_img))
 
     def process_images(self):
+        global cfx
+        cfx.push()
+        #初始化tensorrt引擎
+        self.FeatureTracker.SuperPoint_Ghostnet.async_init()
+        #numba预热编译
+        self.FeatureTracker.precompile_numba()
+        #初始化完成，清空图像队列
+        with self.m_lock:
+            clear_queue(self.left_image_queue)
+            clear_queue(self.right_image_queue)
+        if not self.left_image_queue.empty() or not self.right_image_queue.empty():
+            print("image queue is not empty!")
+        #对队列进行轮询
         rate = rospy.Rate(500)
         while not rospy.is_shutdown():
             cur_time = 0
@@ -182,9 +206,11 @@ class SPFrontEndNode:
                 self.pub_match.publish(ptr_toImageMsg)
 
             rate.sleep() 
+        cfx.pop()
 
     def run(self):
         rospy.spin()
+        self.processStereo_thread.join()
 
 #####################################################################
 ###########################   main入口  ##############################

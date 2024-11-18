@@ -1,16 +1,18 @@
 import numpy as np
 import tensorrt as trt
 import pycuda.driver as cuda
-#import pycuda.autoinit
 #from pycuda.tools import make_context_current
 
 class SuperPointNet_TensorRT:
   def __init__(self, engine_path):
+    self.engine_path = engine_path
+
+  def engine_init(self):
     TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
-    with open(engine_path, 'rb') as f, trt.Runtime(TRT_LOGGER) as runtime:
+    with open(self.engine_path, 'rb') as f, trt.Runtime(TRT_LOGGER) as runtime:
       self.engine = runtime.deserialize_cuda_engine(f.read())
-      inspector = self.engine.create_engine_inspector()
-      print('engine layer_info:\n{}'.format(inspector.get_engine_information(trt.LayerInformationFormat(1))))
+      # inspector = self.engine.create_engine_inspector()
+      # print('engine layer_info:\n{}'.format(inspector.get_engine_information(trt.LayerInformationFormat(1))))
     self.inputs = [] # [(host_input, device_input)]
     self.outputs = [] # [(host_output, device_output)]
     self.tensors = [] # [device_input, device_output]

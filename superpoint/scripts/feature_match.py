@@ -9,8 +9,8 @@ import pycuda.driver as cuda
 from utils.feature_process_trt import PointTracker
 from utils.feature_process_trt import SuperPointFrontend_TensorRT
 
-cuda.init()
-cfx = cuda.Device(0).make_context()
+# cuda.init()
+# cfx = cuda.Device(0).make_context()
 
 run_time = 0.0
 match_time = 0.0
@@ -173,13 +173,15 @@ class VisualTracker:
 			for i in range(len(ids)):
 				pts_velocity = np.append(pts_velocity, np.zeros((2,1)), axis = 1)
 		return pts_velocity, cur_id_pts
-
+	
+	def precompile_numba(self):
+		dummy_image = np.random.rand(self.height, self.width).astype(np.float32)
+		self.SuperPoint_Ghostnet.run(dummy_image)
+		print("==> Precompile for numba function Successfully.")
 	#适配双目
 	def readImage(self, new_img, cur_time):
 
 		assert(new_img[0].ndim==2 and new_img[0].shape[0]==self.height and new_img[0].shape[1]==self.width), "Frame: provided image has not the same size as the camera model or image is not grayscale"
-		global cfx
-		cfx.push()
 		self.new_frame = new_img[0]
 		self.cur_time = cur_time
 
@@ -413,7 +415,6 @@ class VisualTracker:
 		self.pre_time = self.cur_time
 		self.prev_un_pts_map = copy.deepcopy(self.cur_un_pts_map)
 		self.preframe_ = copy.deepcopy(self.curframe_)
-		cfx.pop()
 
 	def trackShow(self, image0, image1, heatmap):
 		draw_feature_matches = []
