@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 1993-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 1993-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,61 +15,60 @@
  * limitations under the License.
  */
 
-#include "sample_utils.h"
+#include "sampleUtils.h"
 #include "half.h"
 
 using namespace nvinfer1;
 
-namespace tensorrt_log
+namespace sample
 {
 
-    size_t dataTypeSize(nvinfer1::DataType dataType)
+size_t dataTypeSize(nvinfer1::DataType dataType)
+{
+    switch (dataType)
     {
-        switch (dataType)
-        {
-            case nvinfer1::DataType::kINT32:
-            case nvinfer1::DataType::kFLOAT: return 4U;
-            case nvinfer1::DataType::kHALF: return 2U;
-            case nvinfer1::DataType::kBOOL:
-            case nvinfer1::DataType::kUINT8:
-            case nvinfer1::DataType::kINT8:
-            case nvinfer1::DataType::kFP8: return 1U;
-        }
-        return 0;
+    case nvinfer1::DataType::kINT32:
+    case nvinfer1::DataType::kFLOAT: return 4U;
+    case nvinfer1::DataType::kHALF: return 2U;
+    case nvinfer1::DataType::kBOOL:
+    case nvinfer1::DataType::kUINT8:
+    case nvinfer1::DataType::kINT8: return 1U;
     }
+    return 0;
+}
 
-    int64_t volume(nvinfer1::Dims const& dims, nvinfer1::Dims const& strides, int32_t vecDim, int32_t comps, int32_t batch)
+int64_t volume(nvinfer1::Dims const& dims, nvinfer1::Dims const& strides, int32_t vecDim, int32_t comps, int32_t batch)
+{
+    int32_t maxNbElems = 1;
+    for (int32_t i = 0; i < dims.nbDims; ++i)
     {
-        int32_t maxNbElems = 1;
-        for (int32_t i = 0; i < dims.nbDims; ++i)
+        // Get effective length of axis.
+        int32_t d = dims.d[i];
+        // Any dimension is 0, it is an empty tensor.
+        if (d == 0)
         {
-            // Get effective length of axis.
-            int32_t d = dims.d[i];
-            // Any dimension is 0, it is an empty tensor.
-            if (d == 0)
-            {
-                return 0;
-            }
-            if (i == vecDim)
-            {
-                d = tensorrt_buffer::divUp(d, comps);
-            }
-            maxNbElems = std::max(maxNbElems, d * strides.d[i]);
+            return 0;
         }
-        return static_cast<int64_t>(maxNbElems) * batch * (vecDim < 0 ? 1 : comps);
+        if (i == vecDim)
+        {
+            d = samplesCommon::divUp(d, comps);
+        }
+        maxNbElems = std::max(maxNbElems, d * strides.d[i]);
     }
+    return static_cast<int64_t>(maxNbElems) * batch * (vecDim < 0 ? 1 : comps);
+}
 
-    nvinfer1::Dims toDims(std::vector<int32_t> const& vec)
+nvinfer1::Dims toDims(std::vector<int32_t> const& vec)
 {
     int32_t limit = static_cast<int32_t>(nvinfer1::Dims::MAX_DIMS);
     if (static_cast<int32_t>(vec.size()) > limit)
-{
-    tensorrt_log::gLogWarning << "Vector too long, only first 8 elements are used in dimension." << std::endl;
-}
-// Pick first nvinfer1::Dims::MAX_DIMS elements
-nvinfer1::Dims dims{std::min(static_cast<int32_t>(vec.size()), limit), {}};
-std::copy_n(vec.begin(), dims.nbDims, std::begin(dims.d));
-return dims;
+    {
+        sample::gLogWarning << "Vector too long, only first 8 elements are used in dimension." << std::endl;
+    }
+    // Pick first nvinfer1::Dims::MAX_DIMS elements
+    nvinfer1::Dims dims{std::min(static_cast<int32_t>(vec.size()), limit), {}};
+    std::copy_n(vec.begin(), dims.nbDims, std::begin(dims.d));
+    return dims;
 }
 
 void loadFromFile(std::string const& fileName, char* dst, size_t size)
@@ -118,20 +117,22 @@ std::vector<std::string> splitToStringVec(std::string const& s, char separator)
 
 bool broadcastIOFormats(std::vector<IOFormat> const& formats, size_t nbBindings, bool isInput /*= true*/)
 {
-bool broadcast = formats.size() == 1;
-bool validFormatsCount = broadcast || (formats.size() == nbBindings);
-if (!formats.empty() && !validFormatsCount)
-{
-if (isInput)
-{
-throw std::invalid_argument(
-"The number of inputIOFormats must match network's inputs or be one for broadcasting.");
-}
-
-throw std::invalid_argument(
-"The number of outputIOFormats must match network's outputs or be one for broadcasting.");
-}
-return broadcast;
+    bool broadcast = formats.size() == 1;
+    bool validFormatsCount = broadcast || (formats.size() == nbBindings);
+    if (!formats.empty() && !validFormatsCount)
+    {
+        if (isInput)
+        {
+            throw std::invalid_argument(
+                "The number of inputIOFormats must match network's inputs or be one for broadcasting.");
+        }
+        else
+        {
+            throw std::invalid_argument(
+                "The number of outputIOFormats must match network's outputs or be one for broadcasting.");
+        }
+    }
+    return broadcast;
 }
 
 void sparsifyMatMulKernelWeights(nvinfer1::INetworkDefinition& network, std::vector<std::vector<int8_t>>& sparseWeights)
@@ -149,29 +150,29 @@ void sparsifyMatMulKernelWeights(nvinfer1::INetworkDefinition& network, std::vec
         ILayer* l = network.getLayer(idx);
         switch (l->getType())
         {
-            case nvinfer1::LayerType::kMATRIX_MULTIPLY:
+        case nvinfer1::LayerType::kMATRIX_MULTIPLY:
+        {
+            // assume weights on the second input.
+            matmulI2L.insert({l->getInput(1), l});
+            break;
+        }
+        case nvinfer1::LayerType::kCONSTANT:
+        {
+            DataType const dtype = static_cast<nvinfer1::IConstantLayer*>(l)->getWeights().type;
+            if (dtype == nvinfer1::DataType::kFLOAT || dtype == nvinfer1::DataType::kHALF)
             {
-                // assume weights on the second input.
-                matmulI2L.insert({l->getInput(1), l});
-                break;
+                // Sparsify float only.
+                constO2L.insert({l->getOutput(0), l});
             }
-            case nvinfer1::LayerType::kCONSTANT:
-            {
-                DataType const dtype = static_cast<nvinfer1::IConstantLayer*>(l)->getWeights().type;
-                if (dtype == nvinfer1::DataType::kFLOAT || dtype == nvinfer1::DataType::kHALF)
-                {
-                    // Sparsify float only.
-                    constO2L.insert({l->getOutput(0), l});
-                }
-                break;
-            }
-            case nvinfer1::LayerType::kSHUFFLE:
-            {
-                shuffleI2L.insert({l->getInput(0), l});
-                shuffleL2O.insert({l, l->getOutput(0)});
-                break;
-            }
-            default: break;
+            break;
+        }
+        case nvinfer1::LayerType::kSHUFFLE:
+        {
+            shuffleI2L.insert({l->getInput(0), l});
+            shuffleL2O.insert({l, l->getOutput(0)});
+            break;
+        }
+        default: break;
         }
     };
     int32_t const nbLayers = network.getNbLayers();
@@ -187,7 +188,7 @@ void sparsifyMatMulKernelWeights(nvinfer1::INetworkDefinition& network, std::vec
 
     // Helper for analysis
     auto isTranspose
-            = [](nvinfer1::Permutation const& perm) -> bool { return (perm.order[0] == 1 && perm.order[1] == 0); };
+        = [](nvinfer1::Permutation const& perm) -> bool { return (perm.order[0] == 1 && perm.order[1] == 0); };
     auto is2D = [](nvinfer1::Dims const& dims) -> bool { return dims.nbDims == 2; };
     auto isIdenticalReshape = [](nvinfer1::Dims const& dims) -> bool
     {
@@ -243,7 +244,7 @@ void sparsifyMatMulKernelWeights(nvinfer1::INetworkDefinition& network, std::vec
         bool const twoInputs = mm->getNbInputs() == 2;
         bool const all2D = is2D(mm->getInput(0)->getDimensions()) && is2D(mm->getInput(1)->getDimensions());
         bool const isSimple = mm->getOperation(0) == nvinfer1::MatrixOperation::kNONE
-                              && mm->getOperation(1) != nvinfer1::MatrixOperation::kVECTOR;
+            && mm->getOperation(1) != nvinfer1::MatrixOperation::kVECTOR;
         if (!(twoInputs && all2D && isSimple))
         {
             continue;
@@ -269,7 +270,7 @@ void sparsifyMatMulKernelWeights(nvinfer1::INetworkDefinition& network, std::vec
         Weights w = layer->getWeights();
         DataType const dtype = w.type;
         ASSERT(dtype == nvinfer1::DataType::kFLOAT
-               || dtype == nvinfer1::DataType::kHALF); // non-float weights should have been ignored.
+            || dtype == nvinfer1::DataType::kHALF); // non-float weights should have been ignored.
 
         if (needTranspose)
         {
@@ -322,9 +323,9 @@ void setSparseWeights(L& l, int32_t k, int32_t trs, std::vector<int8_t>& sparseW
 
 // Explicit instantiation
 template void setSparseWeights<IConvolutionLayer>(
-        IConvolutionLayer& l, int32_t k, int32_t trs, std::vector<int8_t>& sparseWeights);
+    IConvolutionLayer& l, int32_t k, int32_t trs, std::vector<int8_t>& sparseWeights);
 template void setSparseWeights<IFullyConnectedLayer>(
-        IFullyConnectedLayer& l, int32_t k, int32_t trs, std::vector<int8_t>& sparseWeights);
+    IFullyConnectedLayer& l, int32_t k, int32_t trs, std::vector<int8_t>& sparseWeights);
 
 void sparsify(nvinfer1::INetworkDefinition& network, std::vector<std::vector<int8_t>>& sparseWeights)
 {
@@ -358,17 +359,16 @@ void sparsify(Weights const& weights, int32_t k, int32_t trs, std::vector<int8_t
 {
     switch (weights.type)
     {
-        case DataType::kFLOAT:
-            sparsify(static_cast<float const*>(weights.values), weights.count, k, trs, sparseWeights);
-            break;
-        case DataType::kHALF:
-            sparsify(static_cast<half_float::half const*>(weights.values), weights.count, k, trs, sparseWeights);
-            break;
-        case DataType::kINT8:
-        case DataType::kINT32:
-        case DataType::kUINT8:
-        case DataType::kBOOL:
-        case DataType::kFP8: break;
+    case DataType::kFLOAT:
+        sparsify(static_cast<float const*>(weights.values), weights.count, k, trs, sparseWeights);
+        break;
+    case DataType::kHALF:
+        sparsify(static_cast<half_float::half const*>(weights.values), weights.count, k, trs, sparseWeights);
+        break;
+    case DataType::kINT8:
+    case DataType::kINT32:
+    case DataType::kUINT8:
+    case DataType::kBOOL: break;
     }
 }
 
@@ -383,14 +383,9 @@ void print(std::ostream& os, int8_t v)
     os << static_cast<int32_t>(v);
 }
 
-void print(std::ostream& os, __half v)
-{
-    os << static_cast<float>(v);
-}
-
 template <typename T>
 void dumpBuffer(void const* buffer, std::string const& separator, std::ostream& os, Dims const& dims,
-                Dims const& strides, int32_t vectorDim, int32_t spv)
+    Dims const& strides, int32_t vectorDim, int32_t spv)
 {
     auto const vol = volume(dims);
     T const* typedBuffer = static_cast<T const*>(buffer);
@@ -422,17 +417,17 @@ void dumpBuffer(void const* buffer, std::string const& separator, std::ostream& 
 
 // Explicit instantiation
 template void dumpBuffer<bool>(void const* buffer, std::string const& separator, std::ostream& os, Dims const& dims,
-                               Dims const& strides, int32_t vectorDim, int32_t spv);
+    Dims const& strides, int32_t vectorDim, int32_t spv);
 template void dumpBuffer<int32_t>(void const* buffer, std::string const& separator, std::ostream& os, Dims const& dims,
-                                  Dims const& strides, int32_t vectorDim, int32_t spv);
+    Dims const& strides, int32_t vectorDim, int32_t spv);
 template void dumpBuffer<int8_t>(void const* buffer, std::string const& separator, std::ostream& os, Dims const& dims,
-                                 Dims const& strides, int32_t vectorDim, int32_t spv);
+    Dims const& strides, int32_t vectorDim, int32_t spv);
 template void dumpBuffer<float>(void const* buffer, std::string const& separator, std::ostream& os, Dims const& dims,
-                                Dims const& strides, int32_t vectorDim, int32_t spv);
+    Dims const& strides, int32_t vectorDim, int32_t spv);
 template void dumpBuffer<__half>(void const* buffer, std::string const& separator, std::ostream& os, Dims const& dims,
-                                 Dims const& strides, int32_t vectorDim, int32_t spv);
+    Dims const& strides, int32_t vectorDim, int32_t spv);
 template void dumpBuffer<uint8_t>(void const* buffer, std::string const& separator, std::ostream& os, Dims const& dims,
-                                  Dims const& strides, int32_t vectorDim, int32_t spv);
+    Dims const& strides, int32_t vectorDim, int32_t spv);
 
 template <typename T>
 void sparsify(T const* values, int64_t count, int32_t k, int32_t trs, std::vector<int8_t>& sparseWeights)
@@ -477,9 +472,9 @@ void sparsify(T const* values, int64_t count, int32_t k, int32_t trs, std::vecto
 
 // Explicit instantiation
 template void sparsify<float>(
-        float const* values, int64_t count, int32_t k, int32_t trs, std::vector<int8_t>& sparseWeights);
+    float const* values, int64_t count, int32_t k, int32_t trs, std::vector<int8_t>& sparseWeights);
 template void sparsify<half_float::half>(
-        half_float::half const* values, int64_t count, int32_t k, int32_t trs, std::vector<int8_t>& sparseWeights);
+    half_float::half const* values, int64_t count, int32_t k, int32_t trs, std::vector<int8_t>& sparseWeights);
 
 template <typename T>
 void transpose2DWeights(void* dst, void const* src, int32_t const m, int32_t const n)
@@ -530,4 +525,4 @@ template void fillBuffer<int8_t>(void* buffer, int64_t volume, int8_t min, int8_
 template void fillBuffer<__half>(void* buffer, int64_t volume, __half min, __half max);
 template void fillBuffer<uint8_t>(void* buffer, int64_t volume, uint8_t min, uint8_t max);
 
-} // namespace tensorrt_log
+} // namespace sample

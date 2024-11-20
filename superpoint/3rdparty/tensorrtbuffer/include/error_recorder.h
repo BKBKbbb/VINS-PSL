@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 1993-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 1993-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,15 +37,15 @@ using nvinfer1::ErrorCode;
 //! standard mutex's and atomics in order to make sure that the code
 //! works in a multi-threaded environment.
 //!
-class TensorRTErrorRecorder : public IErrorRecorder
+class SampleErrorRecorder : public IErrorRecorder
 {
     using errorPair = std::pair<ErrorCode, std::string>;
     using errorStack = std::vector<errorPair>;
 
 public:
-    TensorRTErrorRecorder() = default;
+    SampleErrorRecorder() = default;
 
-    ~TensorRTErrorRecorder() noexcept override {}
+    virtual ~SampleErrorRecorder() noexcept {}
     int32_t getNbErrors() const noexcept final
     {
         return mErrorStack.size();
@@ -75,7 +75,7 @@ public:
         }
         catch (const std::exception& e)
         {
-            tensorrt_log::gLogFatal << "Internal Error: " << e.what() << std::endl;
+            sample::gLogFatal << "Internal Error: " << e.what() << std::endl;
         }
     };
 
@@ -90,12 +90,12 @@ public:
         try
         {
             std::lock_guard<std::mutex> guard(mStackLock);
-            tensorrt_log::gLogError << "Error[" << static_cast<int32_t>(val) << "]: " << desc << std::endl;
+            sample::gLogError << "Error[" << static_cast<int32_t>(val) << "]: " << desc << std::endl;
             mErrorStack.push_back(errorPair(val, desc));
         }
         catch (const std::exception& e)
         {
-            tensorrt_log::gLogFatal << "Internal Error: " << e.what() << std::endl;
+            sample::gLogFatal << "Internal Error: " << e.what() << std::endl;
         }
         // All errors are considered fatal.
         return true;
@@ -134,5 +134,5 @@ private:
 
     // The error stack that holds the errors recorded by TensorRT.
     errorStack mErrorStack;
-};     // class TensorRTErrorRecorder
+};     // class SampleErrorRecorder
 #endif // ERROR_RECORDER_H
