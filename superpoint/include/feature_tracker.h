@@ -1,13 +1,87 @@
 #ifndef FEATURE_TRACKER__H
 #defien FEATURE_TRACKER__H
 
+#include <vector>
+#include <queue>
+#include <unordered_map>
+#include <cstdio>
+#include <iostream>
+#include <execinfo.h>
+#include <csignal>
+#include <opencv2/opencv.hpp>
+#include <eigen3/Eigen/Dense>
+#include <opencv2/cudaoptflow.hpp>
+#include <opencv2/cudaimgproc.hpp>
+#include <opencv2/cudaarithm.hpp>
+#include <tic_toc.h>
+#include "camodocal/camera_models/CameraFactory.h"
+#include "camodocal/camera_models/CataCamera.h"
+#include "camodocal/camera_models/PinholeCamera.h"
 #include "feature_detector.h"
 #include "point_matcher.h"
 
+using namespace std;
+
 class FeatureTracker
 {
-	FeatureDetector feature_detector;
-	PointMatcher point_matcher;
+public:
+	FeatureTracker()
+	{
+		n_id = 0;
+		//reserve the vector
+		prev_pts.reserve(400);
+		cur_pts.reserve(400);
+		cur_right_pts.reserve(400);
+
+		prev_un_pts.reserve(400);
+		cur_un_pts.reserve(400);
+		cur_right_pts.reserve(400);
+
+		pts_velocity.reserve(400);
+		right_pts_velocity.reserve(400);
+		prev_ids.reserve(400);
+		cur_ids.reserve(400);
+	}
+	void readIntrinsicParameter();
+	void readConfigParameter(const string &config_file, const string &model_prefix_path);
+	vector<cv::Point2f> undistortedPts(vector<cv::Point2f> &pts, camodocal::CameraPtr cam);
+	vector<cv::Point2f> ptsVelocity(vector<int> &cur_ids, vector<cv::Point2f> &cur_un_pts, 
+                                            unordered_map<int, cv::Point2f> &cur_id_pts, unordered_map<int, cv::Point2f> &prev_id_pts);
+	void track_img(double _cur_time, const cv::Mat &_img, const cv::Mat &_img1 = cv::Mat());
+	void readIntrinsicParameter(const vector<string> &calib_file);
+	vector<cv::Point2f> undistortedPts(vector<cv::Point2f> &pts, camodocal::CameraPtr cam);
+    vector<cv::Point2f> ptsVelocity(vector<int> &ids, vector<cv::Point2f> &pts, 
+                                    map<int, cv::Point2f> &cur_id_pts, map<int, cv::Point2f> &prev_id_pts);
+	void DrawMatches(const cv::Mat& ref_image, const cv::Mat& image, const std::vector<cv::KeyPoint>& ref_kpts, 
+    const std::vector<cv::KeyPoint>& kpts, const std::vector<cv::DMatch>& matches);
+	bool inBorder(const cv::Point2f &pt);
+	cv::Mat getTrackImage();
+
+
+	FeatureDetectorPtr feature_detector;
+	PointMatcherPtr point_matcher;
+
+	cv::Mat prev_img, cur_img, right_img;
+
+	vector<cv::Point2f> prev_pts, cur_pts, cur_right_pts;
+	Eigen::Matrix<float, 259, Eigen::Dynamic> prev_features, cur_features, cur_right_features;
+
+	vector<cv::Point2f> prev_un_pts, cur_un_pts, cur_un_right_pts;
+	vector<cv::Point2f> pts_velocity, right_pts_velocity;
+
+	vector<int> prev_ids, cur_ids, right_ids;
+
+	unordered_map<int, cv::Point2f> prev_un_pts_map, cur_un_pts_map;
+	unordered_map<int, cv::Point2f> prev_un_right_pts_map, cur_un_right_pts_map;
+
+	vector<camodocal::CameraPtr> m_camera;
+	FeatureTrackerConfig feature_tracker_config;
+
+	cv::Mat imTrack;
+	long n_id;
+	double cur_time, prev_time;
+	bool stereo_cam;
+	bool first_image_flag = true;
 }
 
 #endif

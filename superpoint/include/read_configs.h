@@ -3,10 +3,54 @@
 
 #include <ros/ros.h>
 #include <iostream>
-#include <string>
 #include <opencv2/core/core.hpp>
 
-struct PLNetCOnfig
+struct FeatureTrackerConfig
+{
+	FeatureTrackerConfig() {}
+
+	void load(const std::string &config_file)
+	{
+		FILE *fh = fopen(config_file.c_str(), "r");
+		if(fh == NULL)
+		{
+			ROS_WARN("config file does not exist; wrong file path");
+			ROS_BREAK();
+			return;
+		}
+		cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
+
+		fsSettings["image0_topic"] >> image0_topic;
+		fsSettings["image1_topic"] >> image1_topic;
+
+		int pn = config_file.find_last_of('/');
+		std::string configPath = config_file.substr(0, pn);
+		std::string cam0Calib, cam1Calib;
+		fsSettings["cam0_calib"] >> cam0Calib;
+		std::string cam0Path = configPath + "/" + cam0Calib;
+		camera_config_file.push_back(cam0Path);
+        fsSettings["cam1_calib"] >> cam1Calib;
+        std::string cam1Path = configPath + "/" + cam1Calib; 
+        //printf("%s cam1 path\n", cam1Path.c_str() );
+        camera_config_file.push_back(cam1Path);
+
+		max_cnt = fsSettings["plnet.max_keypoints"];
+		pub_freq = fsSettings["plnet.pub_freq"];
+		borders = fsSettings["plnet.remove_borders"];
+		show_track = fsSettings["plnet.show_track"];
+		use_opticalflow_stereo = fsSettings["plnet.use_opticalflow_stereo"];
+	}
+
+	std::string image0_topic, image1_topic;
+	std::vector<std::string> camera_config_file;
+	int max_cnt;
+	int pub_freq;
+	int borders;
+	int show_track;
+	bool use_opticalflow_stereo;
+};
+
+struct PLNetConfig
 {
 	PLNetCOnfig() {}
 	//load config file

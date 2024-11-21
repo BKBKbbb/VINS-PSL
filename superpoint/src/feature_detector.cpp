@@ -32,7 +32,7 @@ FeatureDetector::FeatureDetector(const PLNetConfig& plnet_config) : _plnet_confi
 		// exit(0);
 	}
 }
-
+//features[0]:score features[1~2]:(x,y) features[3~259]:desc
 bool FeatureDetector::Detect(cv::Mat& image, Eigen::Matrix<float, 259, Eigen::Dynamic> &features){
 	bool good_infer = false;
 	if(_plnet_config.use_superpoint){
