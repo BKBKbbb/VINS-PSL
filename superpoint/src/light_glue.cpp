@@ -9,9 +9,19 @@
 #include <opencv2/opencv.hpp>
 #include <unordered_map>
 #include <utility>
+#include <dlfcn.h>
 
 using namespace tensorrt_log;
 using namespace tensorrt_buffer;
+
+bool loadCustomPlugin(const std::string& pluginPath) {
+    void* handle = dlopen(pluginPath.c_str(), RTLD_LAZY);
+    if (!handle) {
+        std::cerr << "Failed to load plugin library: " << dlerror() << std::endl;
+        return false;
+    }
+    return true;
+}
 
 SuperPointLightGlue::SuperPointLightGlue(const PointMatcherConfig &lightglue_config) : lightglue_config_(lightglue_config), engine_(nullptr) {
 	setReportableSeverity(Logger::Severity::kINTERNAL_ERROR);
@@ -21,7 +31,7 @@ bool SuperPointLightGlue::build() {
 	if (deserialize_engine()) {
 		return true;
   	}
-
+	std::cout << "deserialize lightglue engine failed, will build it at runtime" << std::endl;
 	auto builder = TensorRTUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(gLogger.getTRTLogger()));
 	if (!builder) {
 		return false;
@@ -292,6 +302,12 @@ void SuperPointLightGlue::save_engine() {
 }
 
 bool SuperPointLightGlue::deserialize_engine() {
+	std::cout << "start deserialize superpoint engine: " << lightglue_config_.engine_file << std::endl;
+	if (!loadCustomPlugin("/home/nx05/Fast-Drone-XI35/src/realflight_modules/VINS-Fusion-gpu/superpoint/scripts/utils/trt_plugins/libcustom_layernorm.so")) 
+	{
+		std::cerr << "Failed to load plugin library." << std::endl;
+		return false;
+    }
 	std::ifstream file(lightglue_config_.engine_file, std::ios::binary);
 	if (file.is_open()) {
 		file.seekg(0, std::ifstream::end);
@@ -310,6 +326,7 @@ bool SuperPointLightGlue::deserialize_engine() {
 		delete[] model_stream;
 		return false;
 		}
+		std::cout << "deserialize lightglue engine successfully" << std::endl;
 		delete[] model_stream;
 		return true;
 	}

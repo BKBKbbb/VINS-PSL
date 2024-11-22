@@ -25,12 +25,13 @@ FeatureDetector::FeatureDetector(const PLNetConfig& plnet_config) : _plnet_confi
 		exit(0);
 		}
 	}
-
+	#if 0
 	_plnet = std::shared_ptr<PLNet>(new PLNet(_plnet_config));
 	if (!_plnet->build()){
 		std::cout << "Error in FeatureDetector building" << std::endl;
 		// exit(0);
 	}
+	#endif
 }
 //features[0]:score features[1~2]:(x,y) features[3~259]:desc
 bool FeatureDetector::Detect(cv::Mat& image, Eigen::Matrix<float, 259, Eigen::Dynamic> &features){

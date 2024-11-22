@@ -22,7 +22,7 @@ def print_model_info(engine):
         print(f"Tensor {i}: {'Input' if is_input else 'Output'}, Name: {name}, Shape: {shape}, Type: {type}")
 
 def main():
-    engine_path = '../sp_model.engine'
+    engine_path = 'superpoint_lightglue.engine'
     engine = load_engine(engine_path)
     print_model_info(engine)
  

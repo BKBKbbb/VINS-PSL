@@ -20,6 +20,7 @@ bool SuperPoint::build() {
     if(deserialize_engine()){
         return true;
     }
+    std::cout << "deserialize superpoint engine failed, will build it at runtime" << std::endl;
     auto builder = TensorRTUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(gLogger.getTRTLogger()));
     if (!builder) {
         return false;
@@ -303,6 +304,7 @@ void SuperPoint::save_engine() {
 }
 
 bool SuperPoint::deserialize_engine() {
+    std::cout << "start deserialize superpoint engine: " << super_point_config_.engine_file << std::endl;
     std::ifstream file(super_point_config_.engine_file.c_str(), std::ios::binary);
     if (file.is_open()) {
         file.seekg(0, std::ifstream::end);
@@ -320,6 +322,7 @@ bool SuperPoint::deserialize_engine() {
         engine_ = std::shared_ptr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(model_stream, size));
         delete[] model_stream;
         if (engine_ == nullptr) return false;
+        std::cout << "deserialize superpoint engine successfully" << std::endl;
         return true;
     }
     return false;

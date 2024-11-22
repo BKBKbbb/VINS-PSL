@@ -34,11 +34,11 @@ struct FeatureTrackerConfig
         //printf("%s cam1 path\n", cam1Path.c_str() );
         camera_config_file.push_back(cam1Path);
 
-		max_cnt = fsSettings["plnet.max_keypoints"];
-		pub_freq = fsSettings["plnet.pub_freq"];
-		borders = fsSettings["plnet.remove_borders"];
-		show_track = fsSettings["plnet.show_track"];
-		use_opticalflow_stereo = fsSettings["plnet.use_opticalflow_stereo"];
+		max_cnt = fsSettings["plnet"]["max_keypoints"];
+		pub_freq = fsSettings["plnet"]["pub_freq"];
+		borders = fsSettings["plnet"]["remove_borders"];
+		show_track = fsSettings["plnet"]["show_track"];
+		use_opticalflow_stereo = fsSettings["plnet"]["use_opticalflow_stereo"];
 		col = fsSettings["image_width"];
 		row = fsSettings["image_height"];
 	}
