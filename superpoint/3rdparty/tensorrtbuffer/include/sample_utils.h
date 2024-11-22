@@ -44,7 +44,7 @@
         }                                                                                                              \
     }
 
-namespace sample
+namespace tensorrt_log
 {
 
 size_t dataTypeSize(nvinfer1::DataType dataType);
@@ -58,7 +58,7 @@ inline T roundUp(T m, T n)
 //! comps is the number of components in a vector. Ignored if vecDim < 0.
 int64_t volume(nvinfer1::Dims const& dims, nvinfer1::Dims const& strides, int32_t vecDim, int32_t comps, int32_t batch);
 
-using samplesCommon::volume;
+using tensorrt_buffer::volume;
 
 nvinfer1::Dims toDims(std::vector<int32_t> const& vec);
 

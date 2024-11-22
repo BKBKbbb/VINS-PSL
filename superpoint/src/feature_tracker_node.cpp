@@ -1,4 +1,5 @@
 #include <ros/ros.h>
+#include <thread>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud.h>
 #include <cv_bridge/cv_bridge.h>
@@ -65,7 +66,7 @@ void sync_process()
 		double cur_time = 0;
 		std_msgs::Header header;
 		bool pub_this_frame = false;
-        if(STEREO)
+        if(tracker.stereo_cam)
         {
             cv::Mat image0, image1;
             m_buf.lock();
@@ -150,7 +151,7 @@ void sync_process()
 				velocity_x_of_point.values.push_back(pts_velocity[i].x);
 				velocity_y_of_point.values.push_back(pts_velocity[i].y);
 			}
-			if(STEREO)
+			if(tracker.stereo_cam)
 			{
 				auto &un_right_pts = tracker.cur_un_right_pts;
             	auto &right_pts = tracker.cur_right_pts;
@@ -194,11 +195,11 @@ void sync_process()
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "feature_tracker_node");
-	ros::NodeHandle nh("~");
+	ros::NodeHandle nh;
 	ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug);
 
 	string model_path;
-	nh.param<string>("/feature_tracker_node/model_path", model_path, "");	
+	nh.param<string>("/feature_tracker_node/model_path", model_path, "model");
 	if(argc != 2)
 	{
 		printf("please intput: rosrun vins vins_node [config file] \n"
@@ -208,14 +209,15 @@ int main(int argc, char** argv)
 	}
 	string config_file = argv[1];
 	printf("config_file: %s\n", argv[1]);
+	printf("model_path: %s\n", model_path.c_str());
 	tracker.readConfigParameter(config_file, model_path);
 	ROS_DEBUG("Load config file successfully!");
 	
 	pub_img = nh.advertise<sensor_msgs::PointCloud>("/feature_tracker/feature", 1000);
-	pub_match = n.advertise<sensor_msgs::Image>("/feature_tracker/feature_img",1000);
+	pub_match = nh.advertise<sensor_msgs::Image>("/feature_tracker/feature_img",1000);
 
-	ros::Subscriber sub_img0 = n.subscribe(tracker.feature_tracker_config.image0_topic, 100, img0_callback);
-	ros::Subscriber sub_img1 = n.subscribe(tracker.feature_tracker_config.image1_topic, 100, img1_callback);
+	ros::Subscriber sub_img0 = nh.subscribe(tracker.feature_tracker_config.image0_topic, 100, img0_callback);
+	ros::Subscriber sub_img1 = nh.subscribe(tracker.feature_tracker_config.image1_topic, 100, img1_callback);
 
 	std::thread sync_thread{sync_process};
 	ros::spin();

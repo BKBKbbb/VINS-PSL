@@ -1,7 +1,6 @@
 #ifndef POINT_MATCHING_H_
 #define POINT_MATCHING_H_
 
-#include "super_glue.h"
 #include "light_glue.h"
 #include "read_configs.h"
 
@@ -20,7 +19,6 @@ public:
 private:
 	PointMatcherConfig _config;
 	SuperPointLightGluePtr _lightglue;
-	SuperGluePtr _superglue;
 };
 
 

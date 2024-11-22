@@ -8,7 +8,8 @@ double distance(cv::Point2f pt1, cv::Point2f pt2)
     return sqrt(dx * dx + dy * dy);
 }
 
-void reduceVector(vector<cv::Point2f> &v, vector<uchar> status)
+template<typename T>
+void reduceVector(vector<T> &v, vector<uchar> status)
 {
     int j = 0;
     for (int i = 0; i < int(v.size()); i++)
@@ -22,7 +23,8 @@ bool FeatureTracker::inBorder(const cv::Point2f &pt)
     int BORDER_SIZE = feature_tracker_config.borders;
     int img_x = cvRound(pt.x);
     int img_y = cvRound(pt.y);
-    return BORDER_SIZE <= img_x && img_x < col - BORDER_SIZE && BORDER_SIZE <= img_y && img_y < row - BORDER_SIZE;
+    return BORDER_SIZE <= img_x && img_x < feature_tracker_config.col - BORDER_SIZE && \
+		BORDER_SIZE <= img_y && img_y < feature_tracker_config.row - BORDER_SIZE;
 }
 
 vector<cv::Point2f> FeatureTracker::undistortedPts(vector<cv::Point2f> &pts, camodocal::CameraPtr cam)
@@ -79,7 +81,7 @@ vector<cv::Point2f> FeatureTracker::ptsVelocity(vector<int> &_cur_ids, vector<cv
     return pts_velocity;
 }
 
-void FeatureTracker::track_img(double _cur_time, const cv::Mat &_img, const cv::Mat &_img1 = cv::Mat())
+void FeatureTracker::track_img(double _cur_time, const cv::Mat &_img, const cv::Mat &_img1)
 {
 	cur_time = _cur_time;
 	cur_img = _img;
@@ -318,10 +320,14 @@ void FeatureTracker::DrawMatches(const cv::Mat& ref_image, const cv::Mat& image,
   	cv::cvtColor(merged_image, rgba_image, cv::COLOR_BGR2BGRA);
 	for(int i = 0; i < pts.size(); i++)
 	{
-		auto it = ref_ids_pts.find(ids[i])
+		auto it = ref_ids_pts.find(ids[i]);
 		if(it != ref_ids_pts.end())
 		{
-			cv::line(rgba_image, it->second, pts[i], cv::Scalar(0,255,0, 10), 2);    
+			cv::Point2f ref_kpts(it->second.x, it->second.y);
+			cv::Point2f kpts(pts[i].x + ref_image.cols, pts[i].y);
+			cv::circle(rgba_image, ref_kpts, 2, cv::Scalar(0, 255, 0), 2);
+			cv::circle(rgba_image, kpts, 2, cv::Scalar(0, 255, 0), 2);
+			cv::line(rgba_image, ref_kpts, kpts, cv::Scalar(0,255,0, 10), 1);    
 		}
 	}
   	cv::cvtColor(rgba_image, imTrack, cv::COLOR_BGRA2BGR);
@@ -333,7 +339,7 @@ void FeatureTracker::readIntrinsicParameter()
     for (size_t i = 0; i < calib_file.size(); i++)
     {
         ROS_INFO("reading paramerter of camera %s", calib_file[i].c_str());
-        camodocal::CameraPtr camera = CameraFactory::instance()->generateCameraFromYamlFile(calib_file[i]);
+        camodocal::CameraPtr camera = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(calib_file[i]);
         m_camera.push_back(camera);
     }
     if (calib_file.size() == 2)

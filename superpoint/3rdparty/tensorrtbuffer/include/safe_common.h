@@ -59,7 +59,7 @@
         }                                                                   \
     } while (0)
 
-namespace samplesCommon
+namespace tensorrt_buffer
 {
 template <typename T>
 inline std::shared_ptr<T> infer_object(T* obj)
@@ -110,7 +110,7 @@ inline int64_t volume(nvinfer1::Dims dims, int32_t vecDim, int32_t comps, int32_
     {
         dims.d[vecDim] = roundUp(dims.d[vecDim], comps);
     }
-    return samplesCommon::volume(dims) * std::max(batch, 1);
+    return tensorrt_buffer::volume(dims) * std::max(batch, 1);
 }
 
 //!
@@ -177,7 +177,7 @@ public:
         }
         // Clean up any CUDA error.
         cudaGetLastError();
-        sample::gLogError << "The CUDA graph capture on the stream has failed." << std::endl;
+        tensorrt_log::gLogError << "The CUDA graph capture on the stream has failed." << std::endl;
     }
 
 private:
@@ -198,7 +198,7 @@ inline void safeLoadLibrary(const std::string& path)
 #ifdef _MSC_VER
         sample::gLogError << "Could not load plugin library: " << path << std::endl;
 #else
-        sample::gLogError << "Could not load plugin library: " << path << ", due to: " << dlerror() << std::endl;
+        tensorrt_log::gLogError << "Could not load plugin library: " << path << ", due to: " << dlerror() << std::endl;
 #endif
     }
 }

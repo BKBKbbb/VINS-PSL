@@ -22,7 +22,7 @@
 
 class SampleErrorRecorder;
 extern SampleErrorRecorder gRecorder;
-namespace sample
+namespace tensorrt_log
 {
 extern Logger gLogger;
 extern LogStreamConsumer gLogVerbose;

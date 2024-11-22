@@ -135,7 +135,7 @@ public:
     //!
     size_t nbBytes() const
     {
-        return this->size() * samplesCommon::getElementSize(mType);
+        return this->size() * tensorrt_buffer::getElementSize(mType);
     }
 
     //!
@@ -160,7 +160,7 @@ public:
     //!
     void resize(const nvinfer1::Dims& dims)
     {
-        return this->resize(samplesCommon::volume(dims));
+        return this->resize(tensorrt_buffer::volume(dims));
     }
 
     ~GenericBuffer()
@@ -262,7 +262,7 @@ public:
                 dims.d[vecDim] = divUp(dims.d[vecDim], scalarsPerVec);
                 vol *= scalarsPerVec;
             }
-            vol *= samplesCommon::volume(dims);
+            vol *= tensorrt_buffer::volume(dims);
             std::unique_ptr<ManagedBuffer> manBuf{new ManagedBuffer()};
             manBuf->deviceBuffer = DeviceBuffer(vol, type);
             manBuf->hostBuffer = HostBuffer(vol, type);

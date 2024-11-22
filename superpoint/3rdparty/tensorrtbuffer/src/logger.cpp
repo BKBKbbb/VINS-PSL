@@ -16,11 +16,11 @@
  */
 
 #include "logger.h"
-#include "ErrorRecorder.h"
+#include "error_recorder.h"
 #include "logging.h"
 using namespace nvinfer1;
 SampleErrorRecorder gRecorder;
-namespace sample
+namespace tensorrt_log
 {
 Logger gLogger{Logger::Severity::kINFO};
 LogStreamConsumer gLogVerbose{LOG_VERBOSE(gLogger)};

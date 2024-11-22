@@ -39,20 +39,23 @@ struct FeatureTrackerConfig
 		borders = fsSettings["plnet.remove_borders"];
 		show_track = fsSettings["plnet.show_track"];
 		use_opticalflow_stereo = fsSettings["plnet.use_opticalflow_stereo"];
+		col = fsSettings["image_width"];
+		row = fsSettings["image_height"];
 	}
 
 	std::string image0_topic, image1_topic;
 	std::vector<std::string> camera_config_file;
+	int col, row;
 	int max_cnt;
 	int pub_freq;
 	int borders;
 	int show_track;
-	bool use_opticalflow_stereo;
+	int use_opticalflow_stereo;
 };
 
 struct PLNetConfig
 {
-	PLNetCOnfig() {}
+	PLNetConfig() {}
 	//load config file
 	void load(const std::string &config_file)
 	{
@@ -64,22 +67,22 @@ struct PLNetConfig
 			return;
 		}
 		cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
-		fsSettings["plnet.superpoint_onnx_model"] >> superpoint_onnx;
-		fsSettings["plnet.superpoint_trt_model"] >> superpoint_engine;
+		fsSettings["plnet"]["superpoint_onnx_model"] >> superpoint_onnx;
+		fsSettings["plnet"]["superpoint_trt_model"] >> superpoint_engine;
 
-		fsSettings["plnet.plnet_s0_onnx_model"] >> plnet_s0_onnx;
-		fsSettings["plnet.plnet_s0_trt_model"] >> plnet_s0_engine;
-		fsSettings["plnet.plnet_s1_onnx_model"] >> plnet_s1_onnx;
-		fsSettings["plnet.plnet_s1_trt_model"] >> plnet_s1_engine;
+		fsSettings["plnet"]["plnet_s0_onnx_model"] >> plnet_s0_onnx;
+		fsSettings["plnet"]["plnet_s0_trt_model"] >> plnet_s0_engine;
+		fsSettings["plnet"]["plnet_s1_onnx_model"] >> plnet_s1_onnx;
+		fsSettings["plnet"]["plnet_s1_trt_model"] >> plnet_s1_engine;
 
-		use_superpoint = fsSettings["plnet.use_superpoint"];
+		use_superpoint = fsSettings["plnet"]["use_superpoint"];
 
-		max_keypoints = fsSettings["plnet.max_keypoints"];
-		keypoint_threshold = fsSettings["plnet.keypoint_threshold"];
-		remove_borders = fsSettings["plnet.remove_borders"];
+		max_keypoints = fsSettings["plnet"]["max_keypoints"];
+		keypoint_threshold = fsSettings["plnet"]["keypoint_threshold"];
+		remove_borders = fsSettings["plnet"]["remove_borders"];
 
-		line_threshold = fsSettings["plnet.line_threshold"];
-		line_length_threshold = fsSettings["plnet.line_length_threshold"];
+		line_threshold = fsSettings["plnet"]["line_threshold"];
+		line_length_threshold = fsSettings["plnet"]["line_length_threshold"];
 	}
 	void setModelPrefixPath(std::string model_prefix_path)
 	{
@@ -146,11 +149,11 @@ struct PointMatcherConfig
 		}
 		cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
 
-		matcher = fsSettings["matcher"];
-		image_width = fsSettings["image_width"];
-		image_height = fsSettings["image_height"];
-		fsSettings["onnx_file"] >> onnx_file;
-		fsSettings["engine_file"] >> engine_file;
+		matcher = fsSettings["point_matcher"]["matcher"];
+		image_width = fsSettings["point_matcher"]["image_width"];
+		image_height = fsSettings["point_matcher"]["image_height"];
+		fsSettings["point_matcher"]["onnx_file"] >> onnx_file;
+		fsSettings["point_matcher"]["engine_file"] >> engine_file;
 	}
 
 	void setModelPrefixPath(std::string model_prefix_path)

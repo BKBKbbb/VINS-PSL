@@ -29,7 +29,7 @@
 
 #include "NvInfer.h"
 
-namespace sample
+namespace tensorrt_log
 {
 
 // Build default params

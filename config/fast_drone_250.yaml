@@ -130,7 +130,7 @@ plnet:
     plnet_s1_trt_model: "plnet_s1.engine"
 
 point_matcher:
-    matcher: 0   # 0 for lightglue, 1 for superglue
+    matcher: 0   # 0 for lightglue
     image_width: 640
     image_height: 480
     onnx_file: "superpoint_lightglue.onnx"

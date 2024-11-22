@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-#include "sampleUtils.h"
+#include "sample_utils.h"
 #include "half.h"
 
 using namespace nvinfer1;
 
-namespace sample
+namespace tensorrt_log
 {
 
 size_t dataTypeSize(nvinfer1::DataType dataType)
@@ -51,7 +51,7 @@ int64_t volume(nvinfer1::Dims const& dims, nvinfer1::Dims const& strides, int32_
         }
         if (i == vecDim)
         {
-            d = samplesCommon::divUp(d, comps);
+            d = tensorrt_buffer::divUp(d, comps);
         }
         maxNbElems = std::max(maxNbElems, d * strides.d[i]);
     }
@@ -63,7 +63,7 @@ nvinfer1::Dims toDims(std::vector<int32_t> const& vec)
     int32_t limit = static_cast<int32_t>(nvinfer1::Dims::MAX_DIMS);
     if (static_cast<int32_t>(vec.size()) > limit)
     {
-        sample::gLogWarning << "Vector too long, only first 8 elements are used in dimension." << std::endl;
+        tensorrt_log::gLogWarning << "Vector too long, only first 8 elements are used in dimension." << std::endl;
     }
     // Pick first nvinfer1::Dims::MAX_DIMS elements
     nvinfer1::Dims dims{std::min(static_cast<int32_t>(vec.size()), limit), {}};

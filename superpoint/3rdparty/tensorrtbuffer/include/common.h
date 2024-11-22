@@ -57,7 +57,7 @@
 #include <unistd.h> // lockf
 #endif
 
-#include "safeCommon.h"
+#include "safe_common.h"
 
 #ifdef _MSC_VER
 #define FN_NAME __FUNCTION__
@@ -74,7 +74,7 @@
     {                                                                                                                  \
         if (!(status))                                                                                                 \
         {                                                                                                              \
-            sample::gLogError << errMsg << " Error in " << __FILE__ << ", function " << FN_NAME << "(), line " << __LINE__     \
+            tensorrt_log::gLogError << errMsg << " Error in " << __FILE__ << ", function " << FN_NAME << "(), line " << __LINE__     \
                       << std::endl;                                                                                    \
             return val;                                                                                                \
         }                                                                                                              \
@@ -86,7 +86,7 @@
     {                                                                       \
         if (!(condition))                                                   \
         {                                                                   \
-            sample::gLogError << "Assertion failure: " << #condition << std::endl;  \
+            tensorrt_log::gLogError << "Assertion failure: " << #condition << std::endl;  \
             abort();                                                        \
         }                                                                   \
     } while (0)
@@ -275,7 +275,7 @@ inline void readPGMFile(const std::string& fileName, uint8_t* buffer, int inH, i
     infile.read(reinterpret_cast<char*>(buffer), inH * inW);
 }
 
-namespace samplesCommon
+namespace tensorrt_buffer
 {
 
 // Swaps endianness of an integral type.
@@ -370,7 +370,7 @@ struct InferDeleter
 };
 
 template <typename T>
-using SampleUniquePtr = std::unique_ptr<T, InferDeleter>;
+using TensorRTUniquePtr = std::unique_ptr<T, InferDeleter>;
 
 static auto StreamDeleter = [](cudaStream_t* pStream)
     {
@@ -425,7 +425,7 @@ template <typename T>
 std::vector<std::string> classify(
     const std::vector<std::string>& refVector, const std::vector<T>& output, const size_t topK)
 {
-    const auto inds = samplesCommon::argMagnitudeSort(output.cbegin(), output.cend());
+    const auto inds = tensorrt_buffer::argMagnitudeSort(output.cbegin(), output.cend());
     std::vector<std::string> result;
     result.reserve(topK);
     for (size_t k = 0; k < topK; ++k)
@@ -439,7 +439,7 @@ std::vector<std::string> classify(
 template <typename T>
 std::vector<size_t> topKMagnitudes(const std::vector<T>& v, const size_t k)
 {
-    std::vector<size_t> indices = samplesCommon::argMagnitudeSort(v.cbegin(), v.cend());
+    std::vector<size_t> indices = tensorrt_buffer::argMagnitudeSort(v.cbegin(), v.cend());
     indices.resize(k);
     return indices;
 }
@@ -581,7 +581,7 @@ inline void setDummyInt8DynamicRanges(const nvinfer1::IBuilderConfig* c, nvinfer
     // Set dummy per-tensor dynamic range if Int8 mode is requested.
     if (c->getFlag(nvinfer1::BuilderFlag::kINT8))
     {
-        sample::gLogWarning << "Int8 calibrator not provided. Generating dummy per-tensor dynamic range. Int8 accuracy "
+        tensorrt_log::gLogWarning << "Int8 calibrator not provided. Generating dummy per-tensor dynamic range. Int8 accuracy "
                                "is not guaranteed."
                             << std::endl;
         setAllDynamicRanges(n);
@@ -671,7 +671,7 @@ struct BBox
 };
 
 template <int C, int H, int W>
-void readPPMFile(const std::string& filename, samplesCommon::PPM<C, H, W>& ppm)
+void readPPMFile(const std::string& filename, tensorrt_buffer::PPM<C, H, W>& ppm)
 {
     ppm.fileName = filename;
     std::ifstream infile(filename, std::ifstream::binary);
@@ -907,9 +907,9 @@ inline void loadLibrary(const std::string& path)
     if (handle == nullptr)
     {
 #ifdef _MSC_VER
-        sample::gLogError << "Could not load plugin library: " << path << std::endl;
+        tensorrt_log::gLogError << "Could not load plugin library: " << path << std::endl;
 #else
-        sample::gLogError << "Could not load plugin library: " << path << ", due to: " << dlerror() << std::endl;
+        tensorrt_log::gLogError << "Could not load plugin library: " << path << ", due to: " << dlerror() << std::endl;
 #endif
     }
 }
@@ -950,7 +950,7 @@ inline int32_t getMaxPersistentCacheSize()
 
 inline bool isDataTypeSupported(nvinfer1::DataType dataType)
 {
-    auto builder = SampleUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(sample::gLogger.getTRTLogger()));
+    auto builder = TensorRTUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(tensorrt_log::gLogger.getTRTLogger()));
     if (!builder)
     {
         return false;
@@ -973,7 +973,7 @@ public:
     {
         std::string lockFileName = fileName + ".lock";
 #ifdef _MSC_VER
-        sample::gLogVerbose << "Trying to set exclusive file lock " << lockFileName << std::endl;
+        tensorrt_log::gLogVerbose << "Trying to set exclusive file lock " << lockFileName << std::endl;
         auto startTime = std::chrono::high_resolution_clock::now();
         // MS docs said this is a blocking IO if "FILE_FLAG_OVERLAPPED" is not provided
         lock = CreateFileA(lockFileName.c_str(), GENERIC_WRITE, 0, NULL, OPEN_ALWAYS, 0, NULL);
@@ -981,7 +981,7 @@ public:
         {
             float const time
                 = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - startTime).count();
-            sample::gLogVerbose << "File locked in " << time << " seconds." << std::endl;
+            tensorrt_log::gLogVerbose << "File locked in " << time << " seconds." << std::endl;
         }
         else
         {
@@ -998,7 +998,7 @@ public:
             throw std::runtime_error("Cannot open " + lockFileName + "!");
         }
         fd = fileno(fp);
-        sample::gLogVerbose << "Trying to set exclusive file lock " << lockFileName << std::endl;
+        tensorrt_log::gLogVerbose << "Trying to set exclusive file lock " << lockFileName << std::endl;
         auto startTime = std::chrono::high_resolution_clock::now();
         auto ret = lockf(fd, F_LOCK, 0);
         if (ret != 0)
@@ -1008,7 +1008,7 @@ public:
             throw std::runtime_error("Failed to lock " + lockFileName + "!");
         }
         float const time = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - startTime).count();
-        sample::gLogVerbose << "File locked in " << time << " seconds." << std::endl;
+        tensorrt_log::gLogVerbose << "File locked in " << time << " seconds." << std::endl;
 #endif
     }
 
@@ -1018,12 +1018,12 @@ public:
 #ifdef _MSC_VER
         if (lock != INVALID_HANDLE_VALUE)
         {
-            sample::gLogVerbose << "Trying to remove exclusive file lock " << lockFileName << std::endl;
+            tensorrt_log::gLogVerbose << "Trying to remove exclusive file lock " << lockFileName << std::endl;
             auto startTime = std::chrono::high_resolution_clock::now();
             CloseHandle(lock);
             float const time
                 = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - startTime).count();
-            sample::gLogVerbose << "File unlocked in " << time << " seconds." << std::endl;
+            tensorrt_log::gLogVerbose << "File unlocked in " << time << " seconds." << std::endl;
         }
 #elif defined(__QNX__)
         // We once enabled the file lock on QNX, lockf(F_TLOCK) return -1 and the reported error is
@@ -1032,12 +1032,12 @@ public:
 #else
         if (fd != -1)
         {
-            sample::gLogVerbose << "Trying to remove exclusive file lock " << lockFileName << std::endl;
+            tensorrt_log::gLogVerbose << "Trying to remove exclusive file lock " << lockFileName << std::endl;
             auto startTime = std::chrono::high_resolution_clock::now();
             auto ret = lockf(fd, F_ULOCK, 0);
             if (ret != 0)
             {
-                sample::gLogVerbose << "Failed to unlock " << lockFileName << "!" << std::endl;
+                tensorrt_log::gLogVerbose << "Failed to unlock " << lockFileName << "!" << std::endl;
             }
             else
             {
@@ -1045,7 +1045,7 @@ public:
                 fclose(fp);
                 float const time
                     = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - startTime).count();
-                sample::gLogVerbose << "File unlocked in " << time << " seconds." << std::endl;
+                tensorrt_log::gLogVerbose << "File unlocked in " << time << " seconds." << std::endl;
             }
         }
 #endif
@@ -1067,11 +1067,11 @@ private:
 
 inline std::vector<char> loadTimingCacheFile(const std::string inFileName)
 {
-    std::unique_ptr<samplesCommon::FileLock> fileLock{new samplesCommon::FileLock(inFileName)};
+    std::unique_ptr<tensorrt_buffer::FileLock> fileLock{new tensorrt_buffer::FileLock(inFileName)};
     std::ifstream iFile(inFileName, std::ios::in | std::ios::binary);
     if (!iFile)
     {
-        sample::gLogWarning << "Could not read timing cache from: " << inFileName
+        tensorrt_log::gLogWarning << "Could not read timing cache from: " << inFileName
                             << ". A new timing cache will be generated and written." << std::endl;
         return std::vector<char>();
     }
@@ -1081,32 +1081,32 @@ inline std::vector<char> loadTimingCacheFile(const std::string inFileName)
     std::vector<char> content(fsize);
     iFile.read(content.data(), fsize);
     iFile.close();
-    sample::gLogInfo << "Loaded " << fsize << " bytes of timing cache from " << inFileName << std::endl;
+    tensorrt_log::gLogInfo << "Loaded " << fsize << " bytes of timing cache from " << inFileName << std::endl;
     return content;
 }
 
 inline void saveTimingCacheFile(const std::string outFileName, const nvinfer1::IHostMemory* blob)
 {
-    std::unique_ptr<samplesCommon::FileLock> fileLock{new samplesCommon::FileLock(outFileName)};
+    std::unique_ptr<tensorrt_buffer::FileLock> fileLock{new tensorrt_buffer::FileLock(outFileName)};
     std::ofstream oFile(outFileName, std::ios::out | std::ios::binary);
     if (!oFile)
     {
-        sample::gLogWarning << "Could not write timing cache to: " << outFileName << std::endl;
+        tensorrt_log::gLogWarning << "Could not write timing cache to: " << outFileName << std::endl;
         return;
     }
     oFile.write((char*) blob->data(), blob->size());
     oFile.close();
-    sample::gLogInfo << "Saved " << blob->size() << " bytes of timing cache to " << outFileName << std::endl;
+    tensorrt_log::gLogInfo << "Saved " << blob->size() << " bytes of timing cache to " << outFileName << std::endl;
 }
 
 inline void updateTimingCacheFile(std::string const fileName, nvinfer1::ITimingCache const* timingCache)
 {
     // Prepare empty timingCache in case that there is no existing file to read
-    std::unique_ptr<nvinfer1::IBuilder> builder{nvinfer1::createInferBuilder(sample::gLogger.getTRTLogger())};
+    std::unique_ptr<nvinfer1::IBuilder> builder{nvinfer1::createInferBuilder(tensorrt_log::gLogger.getTRTLogger())};
     std::unique_ptr<nvinfer1::IBuilderConfig> config{builder->createBuilderConfig()};
     std::unique_ptr<nvinfer1::ITimingCache> fileTimingCache{config->createTimingCache(static_cast<const void*>(nullptr), 0)};
 
-    std::unique_ptr<samplesCommon::FileLock> fileLock{new samplesCommon::FileLock(fileName)};
+    std::unique_ptr<tensorrt_buffer::FileLock> fileLock{new tensorrt_buffer::FileLock(fileName)};
     std::ifstream iFile(fileName, std::ios::in | std::ios::binary);
     if (iFile)
     {
@@ -1116,7 +1116,7 @@ inline void updateTimingCacheFile(std::string const fileName, nvinfer1::ITimingC
         std::vector<char> content(fsize);
         iFile.read(content.data(), fsize);
         iFile.close();
-        sample::gLogInfo << "Loaded " << fsize << " bytes of timing cache from " << fileName << std::endl;
+        tensorrt_log::gLogInfo << "Loaded " << fsize << " bytes of timing cache from " << fileName << std::endl;
         fileTimingCache.reset(config->createTimingCache(static_cast<const void*>(content.data()), content.size()));
         if (!fileTimingCache)
         {
@@ -1132,12 +1132,12 @@ inline void updateTimingCacheFile(std::string const fileName, nvinfer1::ITimingC
     std::ofstream oFile(fileName, std::ios::out | std::ios::binary);
     if (!oFile)
     {
-        sample::gLogWarning << "Could not write timing cache to: " << fileName << std::endl;
+        tensorrt_log::gLogWarning << "Could not write timing cache to: " << fileName << std::endl;
         return;
     }
     oFile.write((char*) blob->data(), blob->size());
     oFile.close();
-    sample::gLogInfo << "Saved " << blob->size() << " bytes of timing cache to " << fileName << std::endl;
+    tensorrt_log::gLogInfo << "Saved " << blob->size() << " bytes of timing cache to " << fileName << std::endl;
 }
 
 } // namespace samplesCommon

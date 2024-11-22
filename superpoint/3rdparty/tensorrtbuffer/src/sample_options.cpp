@@ -27,10 +27,10 @@
 #include "NvInfer.h"
 
 #include "logger.h"
-#include "sampleOptions.h"
-#include "sampleUtils.h"
+#include "sample_options.h"
+#include "sample_utils.h"
 using namespace nvinfer1;
-namespace sample
+namespace tensorrt_log
 {
 
 namespace
@@ -414,13 +414,13 @@ void processShapes(
             if (optShapes)
             {
                 minDimsSource = optDimsSource;
-                sample::gLogWarning << "optShapes is being broadcasted to minShapes for tensor " << s.first
+                tensorrt_log::gLogWarning << "optShapes is being broadcasted to minShapes for tensor " << s.first
                                     << std::endl;
             }
             else
             {
                 minDimsSource = maxDimsSource;
-                sample::gLogWarning << "maxShapes is being broadcasted to minShapes for tensor " << s.first
+                tensorrt_log::gLogWarning << "maxShapes is being broadcasted to minShapes for tensor " << s.first
                                     << std::endl;
             }
         }
@@ -431,13 +431,13 @@ void processShapes(
             if (maxShapes)
             {
                 optDimsSource = maxDimsSource;
-                sample::gLogWarning << "maxShapes is being broadcasted to optShapes for tensor " << s.first
+                tensorrt_log::gLogWarning << "maxShapes is being broadcasted to optShapes for tensor " << s.first
                                     << std::endl;
             }
             else
             {
                 optDimsSource = minDimsSource;
-                sample::gLogWarning << "minShapes is being broadcasted to optShapes for tensor " << s.first
+                tensorrt_log::gLogWarning << "minShapes is being broadcasted to optShapes for tensor " << s.first
                                     << std::endl;
             }
         }
@@ -448,13 +448,13 @@ void processShapes(
             if (optShapes)
             {
                 maxDimsSource = optDimsSource;
-                sample::gLogWarning << "optShapes is being broadcasted to maxShapes for tensor " << s.first
+                tensorrt_log::gLogWarning << "optShapes is being broadcasted to maxShapes for tensor " << s.first
                                     << std::endl;
             }
             else
             {
                 maxDimsSource = minDimsSource;
-                sample::gLogWarning << "minShapes is being broadcasted to maxShapes for tensor " << s.first
+                tensorrt_log::gLogWarning << "minShapes is being broadcasted to maxShapes for tensor " << s.first
                                     << std::endl;
             }
         }
@@ -764,8 +764,8 @@ void BuildOptions::parse(Arguments& arguments)
     getAndDelOption(arguments, "--explicitBatch", addedExplicitBatchFlag);
     if (addedExplicitBatchFlag)
     {
-        sample::gLogWarning << "--explicitBatch flag has been deprecated and has no effect!" << std::endl;
-        sample::gLogWarning << "Explicit batch dim is automatically enabled if input model is ONNX or if dynamic "
+        tensorrt_log::gLogWarning << "--explicitBatch flag has been deprecated and has no effect!" << std::endl;
+        tensorrt_log::gLogWarning << "Explicit batch dim is automatically enabled if input model is ONNX or if dynamic "
                             << "shapes are provided when the engine is built." << std::endl;
     }
 
@@ -785,12 +785,12 @@ void BuildOptions::parse(Arguments& arguments)
     getAndDelOption(arguments, "--explicitPrecision", addedExplicitPrecisionFlag);
     if (addedExplicitPrecisionFlag)
     {
-        sample::gLogWarning << "--explicitPrecision flag has been deprecated and has no effect!" << std::endl;
+        tensorrt_log::gLogWarning << "--explicitPrecision flag has been deprecated and has no effect!" << std::endl;
     }
 
     if (getAndDelOption(arguments, "--workspace", workspace))
     {
-        sample::gLogWarning << "--workspace flag has been deprecated by --memPoolSize flag." << std::endl;
+        tensorrt_log::gLogWarning << "--workspace flag has been deprecated by --memPoolSize flag." << std::endl;
     }
 
     std::string memPoolSizes;
@@ -874,14 +874,14 @@ void BuildOptions::parse(Arguments& arguments)
 
     if (layerPrecisions.empty() && layerOutputTypes.empty() && precisionConstraints != PrecisionConstraints::kNONE)
     {
-        sample::gLogWarning << "When --precisionConstraints flag is set to \"obey\" or \"prefer\", please add "
+        tensorrt_log::gLogWarning << "When --precisionConstraints flag is set to \"obey\" or \"prefer\", please add "
                             << "--layerPrecision/--layerOutputTypes flags to set layer-wise precisions and output "
                             << "types." << std::endl;
     }
     else if ((!layerPrecisions.empty() || !layerOutputTypes.empty())
         && precisionConstraints == PrecisionConstraints::kNONE)
     {
-        sample::gLogWarning << "--layerPrecision/--layerOutputTypes flags have no effect when --precisionConstraints "
+        tensorrt_log::gLogWarning << "--layerPrecision/--layerOutputTypes flags have no effect when --precisionConstraints "
                             << "flag is set to \"none\"." << std::endl;
     }
 
@@ -896,7 +896,7 @@ void BuildOptions::parse(Arguments& arguments)
     std::string profilingVerbosityString;
     if (getAndDelOption(arguments, "--nvtxMode", profilingVerbosityString))
     {
-        sample::gLogWarning << "--nvtxMode flag has been deprecated by --profilingVerbosity flag." << std::endl;
+        tensorrt_log::gLogWarning << "--nvtxMode flag has been deprecated by --profilingVerbosity flag." << std::endl;
     }
 
     getAndDelOption(arguments, "--profilingVerbosity", profilingVerbosityString);
@@ -914,14 +914,14 @@ void BuildOptions::parse(Arguments& arguments)
     }
     else if (profilingVerbosityString == "default")
     {
-        sample::gLogWarning << "--profilingVerbosity=default has been deprecated by "
+        tensorrt_log::gLogWarning << "--profilingVerbosity=default has been deprecated by "
                                "--profilingVerbosity=layer_names_only."
                             << std::endl;
         profilingVerbosity = nvinfer1::ProfilingVerbosity::kLAYER_NAMES_ONLY;
     }
     else if (profilingVerbosityString == "verbose")
     {
-        sample::gLogWarning << "--profilingVerbosity=verbose has been deprecated by --profilingVerbosity=detailed."
+        tensorrt_log::gLogWarning << "--profilingVerbosity=verbose has been deprecated by --profilingVerbosity=detailed."
                             << std::endl;
         profilingVerbosity = nvinfer1::ProfilingVerbosity::kDETAILED;
     }

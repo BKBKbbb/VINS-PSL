@@ -65,6 +65,7 @@ target_link_libraries(${PROJECT_NAME}_lib
   ${OpenCV_LIBRARIES}
   ${CUDA_LIBRARIES}
   ${Boost_LIBRARIES}
+  ${catkin_LIBRARIES}
   yaml-cpp
   tensorrtbuffer
   -lboost_serialization

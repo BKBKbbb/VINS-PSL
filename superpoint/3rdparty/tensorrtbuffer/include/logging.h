@@ -19,7 +19,7 @@
 #define TENSORRT_LOGGING_H
 
 #include "NvInferRuntimeCommon.h"
-#include "sampleOptions.h"
+#include "sample_options.h"
 #include <cassert>
 #include <ctime>
 #include <iomanip>
@@ -29,7 +29,7 @@
 #include <sstream>
 #include <string>
 
-namespace sample
+namespace tensorrt_log
 {
 
 using Severity = nvinfer1::ILogger::Severity;

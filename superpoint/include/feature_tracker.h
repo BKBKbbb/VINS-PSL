@@ -1,5 +1,5 @@
 #ifndef FEATURE_TRACKER__H
-#defien FEATURE_TRACKER__H
+#define FEATURE_TRACKER__H
 
 #include <vector>
 #include <queue>
@@ -49,11 +49,9 @@ public:
                                             unordered_map<int, cv::Point2f> &cur_id_pts, unordered_map<int, cv::Point2f> &prev_id_pts);
 	void track_img(double _cur_time, const cv::Mat &_img, const cv::Mat &_img1 = cv::Mat());
 	void readIntrinsicParameter(const vector<string> &calib_file);
-	vector<cv::Point2f> undistortedPts(vector<cv::Point2f> &pts, camodocal::CameraPtr cam);
-    vector<cv::Point2f> ptsVelocity(vector<int> &ids, vector<cv::Point2f> &pts, 
-                                    map<int, cv::Point2f> &cur_id_pts, map<int, cv::Point2f> &prev_id_pts);
-	void DrawMatches(const cv::Mat& ref_image, const cv::Mat& image, const std::vector<cv::KeyPoint>& ref_kpts, 
-    const std::vector<cv::KeyPoint>& kpts, const std::vector<cv::DMatch>& matches);
+	void DrawMatches(const cv::Mat& ref_image, const cv::Mat& image, 
+					const vector<cv::Point2f>& ref_pts, const vector<cv::Point2f>& pts,
+					const vector<int>& ref_ids, const vector<int>& ids);
 	bool inBorder(const cv::Point2f &pt);
 	cv::Mat getTrackImage();
 
@@ -82,6 +80,6 @@ public:
 	double cur_time, prev_time;
 	bool stereo_cam;
 	bool first_image_flag = true;
-}
+};
 
 #endif

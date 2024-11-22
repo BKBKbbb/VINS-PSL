@@ -2,5 +2,5 @@
 	<!-- <node pkg="superpoint" type="feature_match_node.py" name="superpoint" output="screen"/> -->
 	<node name="feature_tracker_node" pkg="superpoint"  type="feature_tracker_node" output="screen" args="$(find vins)/../config/fast_drone_250.yaml">
 		<param name="model_path" value="$(find superpoint)/model" type="string"/>
-	<node/>
+	</node>
 </launch>
