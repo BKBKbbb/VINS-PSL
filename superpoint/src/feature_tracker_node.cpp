@@ -58,9 +58,13 @@ cv::Mat getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg)
     cv::Mat img = ptr->image.clone();
     return img;
 }
-
+//freq ctrl
+double first_image_time = -1;
+int process_counts = 1;
+bool process_this_frame = false;
 void sync_process()
 {
+	int FREQ = tracker.feature_tracker_config.pub_freq;
     while(1)
     {
 		double cur_time = 0;
@@ -88,6 +92,28 @@ void sync_process()
                 {
                     cur_time = img0_buf.front()->header.stamp.toSec();
                     header = img0_buf.front()->header;
+					//process freq control
+					if(first_image_time < 0)
+					{
+						first_image_time = cur_time;
+						process_this_frame = fasle;
+						img0_buf.pop();
+						img1_buf.pop();
+						continue;
+					}
+					if (round(1.0 * process_counts / (cur_time - first_image_time)) <= FREQ)
+					{
+						process_this_frame = true;
+						// 时间间隔内的发布频率十分接近设定频率时，更新时间间隔起始时刻，并将数据发布次数置0
+						if (abs(1.0 * process_counts / (cur_time - first_image_time) - FREQ) < 0.01 * FREQ)
+						{
+							first_image_time = cur_time;
+							process_counts = 0;
+						}
+					}
+					else
+						process_this_frame = false;
+
                     image0 = getImageFromMsg(img0_buf.front());
                     img0_buf.pop();
                     image1 = getImageFromMsg(img1_buf.front());
@@ -95,8 +121,9 @@ void sync_process()
                 }
             }
             m_buf.unlock();
-            if(!image0.empty())
+            if(!image0.empty() && process_this_frame)
 			{
+				process_counts++;
 				TicToc tic_tk;
 				tracker.track_img(cur_time, image0, image1);
 				pub_this_frame = true;
