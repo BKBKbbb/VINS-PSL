@@ -15,6 +15,8 @@ public:
 	int MatchingPoints(const Eigen::Matrix<float, 259, Eigen::Dynamic>& features0, 
 		const Eigen::Matrix<float, 259, Eigen::Dynamic>& features1, 
 		std::vector<cv::DMatch>& matches,  bool outlier_rejection=false);
+		
+	void prewarmInference();
 
 private:
 	PointMatcherConfig _config;

@@ -2,6 +2,7 @@
 // Created by haoyuefan on 2021/9/22.
 //
 #include "super_point.h"
+#include "tic_toc.h"
 #include <utility>
 #include <unordered_map>
 #include <opencv2/opencv.hpp>
@@ -9,8 +10,8 @@
 using namespace tensorrt_log;
 using namespace tensorrt_buffer;
 
-SuperPoint::SuperPoint(const SuperPointConfig &super_point_config): resized_width(512), 
-        resized_height(512), super_point_config_(super_point_config), engine_(nullptr) {
+SuperPoint::SuperPoint(const SuperPointConfig &super_point_config): resized_width(320), //原始为512， 512
+        resized_height(240), super_point_config_(super_point_config), engine_(nullptr) {
     setReportableSeverity(Logger::Severity::kINTERNAL_ERROR);
     // setReportableSeverity(Logger::Severity::kINTERNAL_ERROR);
 }
@@ -114,7 +115,8 @@ bool SuperPoint::infer(const cv::Mat &image_, Eigen::Matrix<float, 259, Eigen::D
     h_scale = (float)input_height / resized_height;
     w_scale = (float)input_width / resized_width;
     cv::Mat image;
-    cv::resize(image_, image, cv::Size(resized_width, resized_height));
+    //cv::resize(image_, image, cv::Size(resized_width, resized_height));
+    cv::resize(image_, image, cv::Size(resized_width, resized_height), 0.0, 0.0, cv::INTER_AREA);
 
     assert(engine_->getNbBindings() == 3);
 
@@ -122,25 +124,43 @@ bool SuperPoint::infer(const cv::Mat &image_, Eigen::Matrix<float, 259, Eigen::D
 
     context_->setBindingDimensions(input_index, nvinfer1::Dims4(1, 1, image.rows, image.cols));
 
+    /*create host and device mem buffer*/
+    TicToc tic_cb;    
     BufferManager buffers(engine_, 0, context_.get());
-    
+    //ROS_DEBUG("SP: create buffer cost %f ms.", tic_cb.toc());
+
+    /*process image to host mem*/
     ASSERT(super_point_config_.input_tensor_names.size() == 1);
+    TicToc tic_pi;
     if (!process_input(buffers, image)) {
         return false;
     }
+    //ROS_DEBUG("sp: process input(image to host mem) cost %f ms.", tic_pi.toc());
 
+    /*copy host mem to device mem*/
+    TicToc tic_cp;
     buffers.copyInputToDevice();
+    //ROS_DEBUG("sp: copyInputToDevice cost %f ms.", tic_cp.toc());
 
+    /*execute infer*/
+    TicToc tic_inf;
     bool status = context_->executeV2(buffers.getDeviceBindings().data());
     if (!status) {
         return false;
     }
+    ROS_DEBUG("sp: infer cost %f ms.", tic_inf.toc());
 
+    /*copy device mem to host mem*/
+    TicToc tic_cp1;
     buffers.copyOutputToHost();
+    //ROS_DEBUG("sp: copyOutputToHost cost %f ms.", tic_cp1.toc());
+
+    /*process output*/
+    TicToc tic_po;
     if (!process_output(buffers, features)) {
         return false;
     }
-
+    //ROS_DEBUG("sp: process output cost %f ms.", tic_po.toc());
     return true;
 }
 //copy image to host mem
@@ -177,9 +197,9 @@ void SuperPoint::detect_point(const float* heat_map, Eigen::Matrix<float, 259, E
   std::vector<float> scores_v;
   std::vector<float> kpt_xs, kpt_ys;
 
-  scores_v.reserve(top_k);
-  kpt_xs.reserve(top_k);
-  kpt_ys.reserve(top_k);
+  scores_v.reserve(top_k * 4);
+  kpt_xs.reserve(top_k * 4);
+  kpt_ys.reserve(top_k * 4);
 
   int heat_map_size = w * h;
 
@@ -304,7 +324,6 @@ void SuperPoint::save_engine() {
 }
 
 bool SuperPoint::deserialize_engine() {
-    std::cout << "start deserialize superpoint engine: " << super_point_config_.engine_file << std::endl;
     std::ifstream file(super_point_config_.engine_file.c_str(), std::ios::binary);
     if (file.is_open()) {
         file.seekg(0, std::ifstream::end);
@@ -322,7 +341,7 @@ bool SuperPoint::deserialize_engine() {
         engine_ = std::shared_ptr<nvinfer1::ICudaEngine>(runtime->deserializeCudaEngine(model_stream, size));
         delete[] model_stream;
         if (engine_ == nullptr) return false;
-        std::cout << "deserialize superpoint engine successfully" << std::endl;
+        std::cout << "deserialize superpoint engine successfully!" << std::endl;
         return true;
     }
     return false;

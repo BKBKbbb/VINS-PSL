@@ -1,5 +1,5 @@
 #include "point_matcher.h"
-
+#include <Eigen/Dense>
 #include <opencv2/opencv.hpp>
 
 
@@ -80,4 +80,13 @@ int PointMatcher::MatchingPoints(const Eigen::Matrix<float, 259, Eigen::Dynamic>
   }
 
   return matches.size();
+}
+
+void PointMatcher::prewarmInference()
+{
+    auto dummy_feats0 = Eigen::MatrixXf::Random(259, 200);
+    auto dummy_feats1 = Eigen::MatrixXf::Random(259, 200);
+    std::vector<cv::DMatch> matches;
+    MatchingPoints(dummy_feats0, dummy_feats1, matches, true);
+    std::cout << "prewarm for lightglue completed!" << std::endl;
 }

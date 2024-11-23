@@ -43,7 +43,7 @@ public:
 		cur_ids.reserve(400);
 	}
 	void readIntrinsicParameter();
-	void readConfigParameter(const string &config_file, const string &model_prefix_path);
+	void readConfigParameter(const string &config_file, const string &model_prefix_path, const string &plugin_path="");
 	vector<cv::Point2f> undistortedPts(vector<cv::Point2f> &pts, camodocal::CameraPtr cam);
 	vector<cv::Point2f> ptsVelocity(vector<int> &cur_ids, vector<cv::Point2f> &cur_un_pts, 
                                             unordered_map<int, cv::Point2f> &cur_id_pts, unordered_map<int, cv::Point2f> &prev_id_pts);
@@ -53,6 +53,7 @@ public:
 					const vector<cv::Point2f>& ref_pts, const vector<cv::Point2f>& pts,
 					const vector<int>& ref_ids, const vector<int>& ids);
 	bool inBorder(const cv::Point2f &pt);
+	void prewarmForTracker();
 	cv::Mat getTrackImage();
 
 

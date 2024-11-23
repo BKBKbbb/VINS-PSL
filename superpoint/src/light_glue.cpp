@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <utility>
 #include <dlfcn.h>
+#include "tic_toc.h"
 
 using namespace tensorrt_log;
 using namespace tensorrt_buffer;
@@ -31,7 +32,7 @@ bool SuperPointLightGlue::build() {
 	if (deserialize_engine()) {
 		return true;
   	}
-	std::cout << "deserialize lightglue engine failed, will build it at runtime" << std::endl;
+	std::cout << "deserialize lightglue engine failed, will build it at runtime." << std::endl;
 	auto builder = TensorRTUniquePtr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(gLogger.getTRTLogger()));
 	if (!builder) {
 		return false;
@@ -166,10 +167,12 @@ bool SuperPointLightGlue::infer(const Eigen::Matrix<float, 258, Eigen::Dynamic> 
 
 	buffers.copyInputToDevice();
 
+	TicToc tic_e;
 	bool status = context_->executeV2(buffers.getDeviceBindings().data());
 	if (!status) {
 		return false;
 	}
+	ROS_DEBUG("light glue: infer cost %f ms.", tic_e.toc());
 	buffers.copyOutputToHost();
 
 	if (!process_output(buffers, matches_index, matches_score)) {
@@ -302,12 +305,14 @@ void SuperPointLightGlue::save_engine() {
 }
 
 bool SuperPointLightGlue::deserialize_engine() {
-	std::cout << "start deserialize superpoint engine: " << lightglue_config_.engine_file << std::endl;
-	if (!loadCustomPlugin("/home/nx05/Fast-Drone-XI35/src/realflight_modules/VINS-Fusion-gpu/superpoint/scripts/utils/trt_plugins/libcustom_layernorm.so")) 
+	if(!lightglue_config_.plugin_path.empty())
 	{
-		std::cerr << "Failed to load plugin library." << std::endl;
-		return false;
-    }
+		if (!loadCustomPlugin(lightglue_config_.plugin_path)) 
+		{
+			std::cerr << "Failed to load plugin library." << std::endl;
+			return false;
+		}
+	}
 	std::ifstream file(lightglue_config_.engine_file, std::ios::binary);
 	if (file.is_open()) {
 		file.seekg(0, std::ifstream::end);
@@ -326,7 +331,7 @@ bool SuperPointLightGlue::deserialize_engine() {
 		delete[] model_stream;
 		return false;
 		}
-		std::cout << "deserialize lightglue engine successfully" << std::endl;
+		std::cout << "deserialize lightglue engine successfully!" << std::endl;
 		delete[] model_stream;
 		return true;
 	}

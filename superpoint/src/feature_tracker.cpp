@@ -236,6 +236,7 @@ void FeatureTracker::track_img(double _cur_time, const cv::Mat &_img, const cv::
 				right_ids = cur_ids;
 				reduceVector(cur_right_pts, status);
 				reduceVector(right_ids, status);
+				ROS_DEBUG("opticalflow for right image  tracked %d features, cost %f ms", right_ids.size(), t_og1.toc());
 			}
 			else
 			{//use superpoint & lightglue
@@ -286,16 +287,20 @@ void FeatureTracker::track_img(double _cur_time, const cv::Mat &_img, const cv::
 		prev_un_right_pts_map = cur_un_right_pts_map;
 	}
 	//draw
+
 	switch (feature_tracker_config.show_track)
 	{
 	case 1:
-		DrawMatches(prev_img, cur_img, prev_pts, cur_pts, prev_ids, cur_ids);
+		if(!prev_img.empty() && !cur_img.empty())
+			DrawMatches(prev_img, cur_img, prev_pts, cur_pts, prev_ids, cur_ids);
 		break;
 	case 2:
-		DrawMatches(cur_img, right_img, cur_pts, cur_right_pts, cur_ids, right_ids);
+		if(!cur_img.empty() && !right_img.empty())
+			DrawMatches(cur_img, right_img, cur_pts, cur_right_pts, cur_ids, right_ids);
 	default:
 		break;
 	}
+
 	prev_img = cur_img;
 	prev_pts = cur_pts;
 	prev_ids = cur_ids;
@@ -327,7 +332,7 @@ void FeatureTracker::DrawMatches(const cv::Mat& ref_image, const cv::Mat& image,
 			cv::Point2f kpts(pts[i].x + ref_image.cols, pts[i].y);
 			cv::circle(rgba_image, ref_kpts, 2, cv::Scalar(0, 255, 0), 2);
 			cv::circle(rgba_image, kpts, 2, cv::Scalar(0, 255, 0), 2);
-			cv::line(rgba_image, ref_kpts, kpts, cv::Scalar(0,255,0, 10), 1);    
+			cv::line(rgba_image, ref_kpts, kpts, cv::Scalar(0,255,0, 10), 2);    
 		}
 	}
   	cv::cvtColor(rgba_image, imTrack, cv::COLOR_BGRA2BGR);
@@ -346,8 +351,11 @@ void FeatureTracker::readIntrinsicParameter()
         stereo_cam = true;
 }
 
-void FeatureTracker::readConfigParameter(const string &config_file, const string &model_prefix_path)
+void FeatureTracker::readConfigParameter(const string &config_file, const string &model_prefix_path, const string &plugin_path)
 {
+	//feature_tracker config
+	feature_tracker_config.load(config_file);
+	readIntrinsicParameter();
 	//plnet config
 	PLNetConfig plnet_config;
 	plnet_config.load(config_file);
@@ -357,10 +365,65 @@ void FeatureTracker::readConfigParameter(const string &config_file, const string
 	PointMatcherConfig point_matcher_config;
 	point_matcher_config.load(config_file);
 	point_matcher_config.setModelPrefixPath(model_prefix_path);
+	if(!plugin_path.empty())
+		point_matcher_config.setPluginPath(plugin_path);
 	point_matcher = make_shared<PointMatcher>(point_matcher_config);
-	//feature_tracker config
-	feature_tracker_config.load(config_file);
-	readIntrinsicParameter();
+	// //prewarm
+	// feature_detector->prewarmInference();
+	// point_matcher->prewarmInference();
+}
+
+void FeatureTracker::prewarmForTracker()
+{
+    int imgWidth = 640;
+    int imgHeight = 480;
+    int boardSize = 20;
+    int cellWidth = imgWidth / boardSize;
+    int cellHeight = imgHeight / boardSize;
+    cv::Mat dummyImage0(imgHeight, imgWidth, CV_8UC1, cv::Scalar(0));
+    for (int i = 0; i < boardSize; ++i) 
+	{
+        for (int j = 0; j < boardSize; ++j) 
+		{
+            int startX = i * cellWidth;
+            int startY = j * cellHeight;
+            if ((i + j) % 2 == 0) 
+			{
+				dummyImage0(cv::Rect(startX, startY, cellWidth, cellHeight)).setTo(cv::Scalar(255));
+            }
+        }
+	}
+	cv::Mat dummyImage1 = dummyImage0;
+	//prewarm for superpoint
+	TicToc tic_1;
+	Eigen::Matrix<float, 259, Eigen::Dynamic> features0;
+	Eigen::Matrix<float, 259, Eigen::Dynamic> features1;
+	feature_detector->Detect(dummyImage0, features0);
+	feature_detector->Detect(dummyImage1, features1);
+	int dummy0PtsSize = features0.cols();
+	vector<cv::Point2f> dummy_pts0;
+	for(int i = 0; i < dummy0PtsSize; i++)
+	{
+		dummy_pts0.emplace_back(features0(1, i), features0(2, i));
+	}
+	ROS_DEBUG("prewarm superpoint cost %f ms, detect %d features.", tic_1.toc(), dummy0PtsSize);
+	//prewarm for lightglue
+	TicToc tic_2;
+	vector<cv::DMatch> matches;
+	point_matcher->MatchingPoints(features0, features1, matches, true);
+	ROS_DEBUG("prewarm lightglue cost %f ms, matches size %d.", tic_2.toc(), matches.size());
+	//prewarm for opticalflow
+	TicToc tic_3;
+	cv::cuda::GpuMat cur_gpu_img(dummyImage0);
+	cv::cuda::GpuMat right_gpu_Img(dummyImage1);
+	cv::cuda::GpuMat cur_gpu_pts(dummy_pts0);
+	cv::cuda::GpuMat cur_right_gpu_pts;
+	cv::cuda::GpuMat gpu_status;
+	cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(
+	cv::Size(21, 21), 3, 30, false);
+	d_pyrLK_sparse->calc(cur_gpu_img, right_gpu_Img, cur_gpu_pts, cur_right_gpu_pts, gpu_status);
+	ROS_DEBUG("prewarm opticalflow cost %f ms.", tic_3.toc());
+	std::cout << "Prewarm for feature tracker completed!" << std::endl;
 }
 
 cv::Mat FeatureTracker::getTrackImage()

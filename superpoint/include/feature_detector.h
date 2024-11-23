@@ -25,6 +25,8 @@ public:
 		Eigen::Matrix<float, 259, Eigen::Dynamic> & right_features, std::vector<Eigen::Vector4d>& left_lines, 
 		std::vector<Eigen::Vector4d>& right_lines, Eigen::Matrix<float, 259, Eigen::Dynamic>& junctions);
 
+	void prewarmInference();
+
 private:
 	PLNetConfig _plnet_config;
 	SuperPointPtr _superpoint;

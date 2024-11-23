@@ -97,8 +97,10 @@ void sync_process()
             m_buf.unlock();
             if(!image0.empty())
 			{
+				TicToc tic_tk;
 				tracker.track_img(cur_time, image0, image1);
 				pub_this_frame = true;
+				ROS_INFO("track stereo cost %f ms", tic_tk.toc());
 			}
         }
         else
@@ -198,8 +200,10 @@ int main(int argc, char** argv)
 	ros::NodeHandle nh;
 	ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug);
 
-	string model_path;
+	string model_path, lightglue_plugin_path;
 	nh.param<string>("/feature_tracker_node/model_path", model_path, "model");
+	nh.param<string>("/feature_tracker_node/lightglue_plugin_path", lightglue_plugin_path, "");
+
 	if(argc != 2)
 	{
 		printf("please intput: rosrun vins vins_node [config file] \n"
@@ -210,8 +214,9 @@ int main(int argc, char** argv)
 	string config_file = argv[1];
 	printf("config_file: %s\n", argv[1]);
 	printf("model_path: %s\n", model_path.c_str());
-	tracker.readConfigParameter(config_file, model_path);
-	ROS_DEBUG("Load config file successfully!");
+	tracker.readConfigParameter(config_file, model_path, lightglue_plugin_path);
+
+	tracker.prewarmForTracker();
 	
 	pub_img = nh.advertise<sensor_msgs::PointCloud>("/feature_tracker/feature", 1000);
 	pub_match = nh.advertise<sensor_msgs::Image>("/feature_tracker/feature_img",1000);

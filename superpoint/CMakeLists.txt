@@ -78,7 +78,6 @@ target_link_libraries(${PROJECT_NAME}_lib
   yaml-cpp
   tensorrtbuffer
   -lboost_serialization
-  /home/nx05/Fast-Drone-XI35/src/realflight_modules/VINS-Fusion-gpu/superpoint/scripts/utils/trt_plugins/libcustom_layernorm.so
 )
 
 add_executable(feature_tracker_node src/feature_tracker_node.cpp)

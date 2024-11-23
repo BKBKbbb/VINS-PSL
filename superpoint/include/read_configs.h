@@ -136,6 +136,7 @@ struct PointMatcherConfig
 	std::vector<std::string> output_tensor_names;
 	std::string onnx_file;
 	std::string engine_file;
+	std::string plugin_path;
 	PointMatcherConfig() {}
 
 	void load(const std::string &config_file)
@@ -162,6 +163,11 @@ struct PointMatcherConfig
 			model_prefix_path += '/';
 		onnx_file = model_prefix_path + onnx_file;
 		engine_file = model_prefix_path + engine_file;
+	}
+
+	void setPluginPath(std::string _plugin_path)
+	{
+		plugin_path = _plugin_path;
 	}
 
 };

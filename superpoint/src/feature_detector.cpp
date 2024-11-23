@@ -107,3 +107,18 @@ bool FeatureDetector::Detect(cv::Mat& image_left, cv::Mat& image_right, Eigen::M
 	}
 	return good_infer; 
 }
+
+void FeatureDetector::prewarmInference()
+{
+	std::srand(static_cast<unsigned int>(std::time(0)));
+	int height = 480, width = 640;
+	cv::Mat dummyImage(height, width, CV_8UC1);
+	for (int y = 0; y < height; ++y)
+	{
+		for (int x = 0; x < width; ++x)
+			dummyImage.at<uchar>(y, x) = static_cast<uchar>(std::rand() % 256);
+    }
+	Eigen::Matrix<float, 259, Eigen::Dynamic> features;
+	Detect(dummyImage, features);
+	std::cout << "prewarm for superpoint completed!" << std::endl;
+}

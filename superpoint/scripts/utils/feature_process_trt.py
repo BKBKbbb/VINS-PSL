@@ -370,6 +370,7 @@ class SuperPointFrontend_TensorRT(object):
     # Forward pass of network.
     start_time = time()
     semi, coarse_desc = self.trt_model.infer(img)
+    assert coarse_desc.shape[1] == 256, 'coarse desc dim must be 256.'
     print("trt infer time is {}ms:".format((time() - start_time)*1000.))
 
     # --- Process points.
