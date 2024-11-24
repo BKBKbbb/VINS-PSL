@@ -47,7 +47,7 @@ struct FeatureTrackerConfig
 	std::vector<std::string> camera_config_file;
 	int col, row;
 	int max_cnt;
-	int pub_freq;
+	double pub_freq;
 	int borders;
 	int show_track;
 	int use_opticalflow_stereo;

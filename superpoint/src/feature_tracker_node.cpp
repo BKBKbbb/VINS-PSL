@@ -64,7 +64,7 @@ int process_counts = 1;
 bool process_this_frame = false;
 void sync_process()
 {
-	int FREQ = tracker.feature_tracker_config.pub_freq;
+	double FREQ = tracker.feature_tracker_config.pub_freq;
     while(1)
     {
 		double cur_time = 0;
@@ -96,15 +96,15 @@ void sync_process()
 					if(first_image_time < 0)
 					{
 						first_image_time = cur_time;
-						process_this_frame = fasle;
+						process_this_frame = false;
 						img0_buf.pop();
 						img1_buf.pop();
+						m_buf.unlock();
 						continue;
 					}
 					if (round(1.0 * process_counts / (cur_time - first_image_time)) <= FREQ)
 					{
 						process_this_frame = true;
-						// 时间间隔内的发布频率十分接近设定频率时，更新时间间隔起始时刻，并将数据发布次数置0
 						if (abs(1.0 * process_counts / (cur_time - first_image_time) - FREQ) < 0.01 * FREQ)
 						{
 							first_image_time = cur_time;
@@ -213,7 +213,8 @@ void sync_process()
 			if(tracker.feature_tracker_config.show_track)
 			{
 				cv::Mat match_res = tracker.getTrackImage();
-				pubTrackImage(match_res, header.stamp.toSec());
+				if(!match_res.empty())
+					pubTrackImage(match_res, header.stamp.toSec());
 			}
 		}
         std::chrono::milliseconds dura(2);

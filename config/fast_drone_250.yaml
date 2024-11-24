@@ -79,7 +79,7 @@ max_cnt: 150            # max feature number in feature tracking
 min_dist: 30            # min distance between two features 
 freq: 10                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
 F_threshold: 1.0        # ransac threshold (pixel)
-show_track: 0           # publish tracking image as topic
+show_track: 1           # publish tracking image as topic
 flow_back: 1            # perform forward and backward optical flow to improve feature tracking accuracy
 
 #optimization parameters
@@ -114,12 +114,12 @@ use_external_front_end: 1 #0：前端使用自带的光流跟踪，1：使用外
 plnet:
     use_superpoint: 1
     max_keypoints: 200  #400
-    keypoint_threshold: 0.004 #0.004
+    keypoint_threshold: 0.01 #0.004
     remove_borders: 4 
     line_threshold: 0.75
     line_length_threshold: 50
-    pub_freq: 10
-    show_track: 2 #0：不显示，1：显示左目与上一帧匹配结果，2：显示左右目匹配结果
+    pub_freq: 7.5
+    show_track: 1 #0：不显示，1：显示左目与上一帧匹配结果，2：显示左右目匹配结果
     use_opticalflow_stereo: 1 #0：左右目匹配使用superpoint+lightglue 1：左右目匹配使用光流，
 
     superpoint_onnx_model: "superpoint_v1_sim_int32.onnx"

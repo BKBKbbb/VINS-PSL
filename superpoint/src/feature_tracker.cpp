@@ -330,8 +330,8 @@ void FeatureTracker::DrawMatches(const cv::Mat& ref_image, const cv::Mat& image,
 		{
 			cv::Point2f ref_kpts(it->second.x, it->second.y);
 			cv::Point2f kpts(pts[i].x + ref_image.cols, pts[i].y);
-			cv::circle(rgba_image, ref_kpts, 2, cv::Scalar(0, 255, 0), 2);
-			cv::circle(rgba_image, kpts, 2, cv::Scalar(0, 255, 0), 2);
+			cv::circle(rgba_image, ref_kpts, 2, cv::Scalar(255, 0, 0), 2);
+			cv::circle(rgba_image, kpts, 2, cv::Scalar(255, 0, 0), 2);
 			cv::line(rgba_image, ref_kpts, kpts, cv::Scalar(0,255,0, 10), 2);    
 		}
 	}
