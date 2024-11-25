@@ -64,7 +64,7 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
     //     sum_t_feature += featureTrackerTime.toc();
     //     printf("featureTracker time: %f\n", sum_t_feature/(float)inputImageCnt);
     // }
-    ROS_INFO("Track cost %f ms.", featureTrackerTime.toc());
+    //ROS_INFO("Track cost %f ms.", featureTrackerTime.toc());
     if (SHOW_TRACK)
     {
         cv::Mat imgTrack = featureTracker.getTrackImage();
@@ -223,6 +223,7 @@ void Estimator::processMeasurements()
             pubPointCloud(*this, header);
             pubKeyframe(*this);
             pubTF(*this, header);
+            printf("current used features counts: %d.\n", f_manager.getFeatureCount());
             printf("process measurement time: %f\n", t_process.toc());
         }
 

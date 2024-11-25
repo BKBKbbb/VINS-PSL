@@ -10,6 +10,7 @@ FeatureDetector::FeatureDetector(const PLNetConfig& plnet_config) : _plnet_confi
 		superpoint_config.max_keypoints = plnet_config.max_keypoints;
 		superpoint_config.keypoint_threshold = plnet_config.keypoint_threshold;
 		superpoint_config.remove_borders = plnet_config.remove_borders;
+		superpoint_config.dist_thresh = plnet_config.dist_thresh;
 		superpoint_config.dla_core = -1;
 
 		superpoint_config.input_tensor_names.push_back("input");

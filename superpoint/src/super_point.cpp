@@ -10,8 +10,8 @@
 using namespace tensorrt_log;
 using namespace tensorrt_buffer;
 
-SuperPoint::SuperPoint(const SuperPointConfig &super_point_config): resized_width(320), //原始为512， 512
-        resized_height(240), super_point_config_(super_point_config), engine_(nullptr) {
+SuperPoint::SuperPoint(const SuperPointConfig &super_point_config): resized_width(640), //原始为512， 512
+        resized_height(480), super_point_config_(super_point_config), engine_(nullptr) {
     setReportableSeverity(Logger::Severity::kINTERNAL_ERROR);
     // setReportableSeverity(Logger::Severity::kINTERNAL_ERROR);
 }
@@ -185,56 +185,97 @@ bool SuperPoint::process_input(const BufferManager &buffers, const cv::Mat &imag
     return true;
 }
 
-std::vector<size_t> SuperPoint::sort_indexes(std::vector<float> &data) {
-  std::vector<size_t> indexes(data.size());
+std::vector<int> SuperPoint::sort_indexes(std::vector<float> &data) {
+  std::vector<int> indexes(data.size());
   iota(indexes.begin(), indexes.end(), 0);
-  sort(indexes.begin(), indexes.end(), [&data](size_t i1, size_t i2) { return data[i1] > data[i2]; });
+  sort(indexes.begin(), indexes.end(), [&data](int i1, int i2) { return data[i1] > data[i2]; });
   return indexes;
+}
+//nms
+std::vector<std::pair<int, cv::Point2f>> SuperPoint::nms_process(const std::vector<cv::Point2f>& pts, const std::vector<int>& sorted_idx, float dist_thresh)
+{   
+    int grid_size = dist_thresh;
+    std::unordered_map<int64, std::vector<int>> grid_umap;
+    auto grid_id = [&](int x, int y) -> int64{return static_cast<int64>(x) << 32 | (y & 0xFFFFFFFF);};
+    //construct umap
+    for(int i = 0; i < sorted_idx.size(); i++)
+    {
+        int grid_x = static_cast<int>(std::floor(pts[sorted_idx[i]].x / grid_size));
+        int grid_y = static_cast<int>(std::floor(pts[sorted_idx[i]].y / grid_size));
+        grid_umap[grid_id(grid_x, grid_y)].push_back(sorted_idx[i]);
+    }
+
+    std::vector<bool> suppressed(pts.size(), false);
+    std::vector<std::pair<int, cv::Point2f>> id_pts;
+    for(int i = 0; i < sorted_idx.size(); i++)
+    {
+		int cur_idx = sorted_idx[i];
+        if(suppressed[cur_idx])
+            continue;
+        int grid_x = static_cast<int>(std::floor(pts[cur_idx].x / grid_size));
+        int grid_y = static_cast<int>(std::floor(pts[cur_idx].y / grid_size));
+        for(int dx = -1; dx <= 1; dx++)
+        {
+            for(int dy = -1; dy <= 1; dy++)
+            {
+                int neighbor_x = grid_x + dx;
+                int neighbor_y = grid_y + dy;
+                if(grid_umap.find(grid_id(neighbor_x, neighbor_y)) == grid_umap.end())
+                    continue;
+                for(auto index : grid_umap[grid_id(neighbor_x, neighbor_y)])
+                {
+                    if(suppressed[index])
+                        continue;
+                    if(cv::norm(pts[cur_idx] - pts[index]) < dist_thresh)
+                        suppressed[index] = true;
+                }
+            }
+        }
+        id_pts.emplace_back(cur_idx, pts[cur_idx]);
+    }
+    return id_pts;
 }
 //recovery features points from heat_map
 void SuperPoint::detect_point(const float* heat_map, Eigen::Matrix<float, 259, Eigen::Dynamic>& features, 
     int h, int w, float threshold, int border, int top_k) {
-  std::vector<float> scores_v;
-  std::vector<float> kpt_xs, kpt_ys;
+	std::vector<float> scores_v;
+	std::vector<cv::Point2f> kpts;
 
-  scores_v.reserve(top_k * 4);
-  kpt_xs.reserve(top_k * 4);
-  kpt_ys.reserve(top_k * 4);
+	scores_v.reserve(top_k * 4);
+	kpts.reserve(top_k * 4);
 
-  int heat_map_size = w * h;
+	int heat_map_size = w * h;
 
-  int min_x = border;
-  int min_y = border;
-  int max_x = w - border;
-  int max_y = h - border;
+	int min_x = border;
+	int min_y = border;
+	int max_x = w - border;
+	int max_y = h - border;
 
-  for(int i = 0; i < heat_map_size; ++i){
-    if(*(heat_map+i) < threshold) continue;
+	for(int i = 0; i < heat_map_size; ++i){
+		if(*(heat_map+i) < threshold) continue;
 
-    int y = int(i / w);
-    int x = i - y * w;
+		int y = int(i / w);
+		int x = i - y * w;
 
-    if(x < min_x || x > max_x || y < min_y || y > max_y) continue;
+		if(x < min_x || x > max_x || y < min_y || y > max_y) continue;
 
-    scores_v.emplace_back(*(heat_map+i));
-    kpt_xs.emplace_back(float(x));
-    kpt_ys.emplace_back(float(y));
-  }
-
-  if(scores_v.size() > top_k){
-    std::vector<size_t> indexes = sort_indexes(scores_v);
-    features.resize(259, top_k);
-    for (int i = 0; i < top_k; ++i) {
-      features(0, i) = scores_v[indexes[i]];
-      features(1, i) = kpt_xs[indexes[i]];
-      features(2, i) = kpt_ys[indexes[i]];
-    }
-  }else{
-    features.resize(259, scores_v.size());
-    features.row(0) = Eigen::Map<Eigen::Matrix<float, 1, Eigen::Dynamic>>(scores_v.data(), 1, scores_v.size());
-    features.row(1) = Eigen::Map<Eigen::Matrix<float, 1, Eigen::Dynamic>>(kpt_xs.data(), 1, kpt_xs.size());
-    features.row(2) = Eigen::Map<Eigen::Matrix<float, 1, Eigen::Dynamic>>(kpt_ys.data(), 1, kpt_ys.size());
-  }
+		scores_v.push_back(*(heat_map+i));
+		kpts.emplace_back(float(x), float(y));
+	}
+	std::vector<int> indexes = sort_indexes(scores_v);
+	if(scores_v.size() > top_k){
+		indexes.resize(top_k);
+	}
+	auto id_pts_reserved = nms_process(kpts, indexes, super_point_config_.dist_thresh);
+	int reserved_size = id_pts_reserved.size();
+	features.resize(259, reserved_size);
+	int i = 0;
+	for (auto &id_pt : id_pts_reserved) {
+		features(0, i) = scores_v[id_pt.first];
+		features(1, i) = id_pt.second.x;
+		features(2, i) = id_pt.second.y;
+		i++;
+	}
 }
 
 int SuperPoint::clip(int val, int max) {

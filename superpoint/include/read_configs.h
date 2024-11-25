@@ -80,6 +80,7 @@ struct PLNetConfig
 		max_keypoints = fsSettings["plnet"]["max_keypoints"];
 		keypoint_threshold = fsSettings["plnet"]["keypoint_threshold"];
 		remove_borders = fsSettings["plnet"]["remove_borders"];
+		dist_thresh = fsSettings["plnet"]["dist_thresh"];
 
 		line_threshold = fsSettings["plnet"]["line_threshold"];
 		line_length_threshold = fsSettings["plnet"]["line_length_threshold"];
@@ -109,6 +110,7 @@ struct PLNetConfig
 	int max_keypoints;
 	float keypoint_threshold;
 	int remove_borders;
+	float dist_thresh;
 
 	float line_threshold;
 	float line_length_threshold;
@@ -119,6 +121,7 @@ struct SuperPointConfig
 	int max_keypoints;
 	float keypoint_threshold;
 	int remove_borders;
+	float dist_thresh;
 	int dla_core;
 	std::vector<std::string> input_tensor_names;
 	std::vector<std::string> output_tensor_names;
@@ -132,6 +135,7 @@ struct PointMatcherConfig
 	int image_width;
 	int image_height;
 	int dla_core;
+	double F_threshold;
 	std::vector<std::string> input_tensor_names;
 	std::vector<std::string> output_tensor_names;
 	std::string onnx_file;
@@ -153,6 +157,7 @@ struct PointMatcherConfig
 		matcher = fsSettings["point_matcher"]["matcher"];
 		image_width = fsSettings["point_matcher"]["image_width"];
 		image_height = fsSettings["point_matcher"]["image_height"];
+		F_threshold = fsSettings["point_matcher"]["F_threshold"];
 		fsSettings["point_matcher"]["onnx_file"] >> onnx_file;
 		fsSettings["point_matcher"]["engine_file"] >> engine_file;
 	}

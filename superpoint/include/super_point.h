@@ -57,11 +57,13 @@ private:
 
     bool keypoints_decoder(const float* scores, const float* descriptors, Eigen::Matrix<float, 259, Eigen::Dynamic> &features);
 
-    std::vector<size_t> sort_indexes(std::vector<float> &data);
+    std::vector<int> sort_indexes(std::vector<float> &data);
     int clip(int val, int max);
 
     void detect_point(const float* heat_map, Eigen::Matrix<float, 259, Eigen::Dynamic>& features, int h, int w, float threshold, int border, int top_k);
     void extract_descriptors(const float *descriptors, Eigen::Matrix<float, 259, Eigen::Dynamic> &features, int h, int w, int s);
+
+    std::vector<std::pair<int, cv::Point2f>> nms_process(const std::vector<cv::Point2f>& pts, const std::vector<int>& sorted_idx, float dist_thresh);
 };
 
 typedef std::shared_ptr<SuperPoint> SuperPointPtr;
