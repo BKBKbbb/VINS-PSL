@@ -4,12 +4,17 @@ VINS-PSL是面向低功耗边缘计算平台的点与结构线联合优化视觉
 1. 在前端嵌入了主流的深度学习方法，包括**XFeat**、**Superpoint**、**Lightglue**，并利用TensorRT实现模型优化与部署。特征点提取与匹配的组合可以选用：**XFeat+LK**（推荐），Superpoint + LK、Superpoint + lightglue。经过测试，XFeat+LK的组合在鲁棒性和实时性上的综合表现最佳。同时，在前端加入LSD+LBD提取线特征以及描述子，采用knn实现帧间线特征匹配；
 2. 为了充分利用XFeat输出的描述子，假设相邻特征点具有运动一致性，设计了局部区域匹配的特征点重跟踪算法，以提高特征点跟踪的鲁棒性；
 3. 受**StructVIO**启发，基于亚特兰大世界假设对线特征进行建模，将线特征参数自由度由4压缩至2，从而构建隐含几何正交约束的线特征约束项，使得线特征更容易被优化的同时也提高了状态估计的精度。
-
-<img src="support_files/VINS-PSL-MH05.png" alt="VINS-PSL" width="500" height="250"/>
-
+- EuRoC-MH05测试效果(轨迹+地图)
+<img src="support_files/VINS-PSL-MH05.png" alt="VINS-PSL-MH05-test" width="600" height="300"/> 
+&nbsp;
+- 暗光环境，XFeat特征点跟踪效果（绿色箭头为光流，红色箭头为重跟踪）
+<img src="support_files/lowExHighMove-Retrack.gif" alt="Retrack" width="600" height="300"/> 
+&nbsp;
+- 室内环境实机测试（Jetson Orin NX + RealSenseD435）
+<img src="support_files/VINS-PSL-GIF.gif" alt="VINS-PSL-indoor-test" width="600" height="300"/> 
 ##  Prerequisites
 **platform**: Jetson Orin NX with Jetpack 5.1.1
-**dependencies**: 
+**dependencies**:
 - ROS-Noetic
 - OpenCV 4.5.4 With CUDA
 - Ceres 2.0.0
