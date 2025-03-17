@@ -6,10 +6,12 @@ VINS-PSL是面向低功耗边缘计算平台的点与结构线联合优化视觉
 3. 受**StructVIO**启发，基于亚特兰大世界假设对线特征进行建模，将线特征参数自由度由4压缩至2，从而构建隐含几何正交约束的线特征约束项，使得线特征更容易被优化的同时也提高了状态估计的精度。
 - EuRoC-MH05测试效果(轨迹+地图)
 <img src="support_files/VINS-PSL-MH05.png" alt="VINS-PSL-MH05-test" width="600" height="300"/> 
-&nbsp;
+
+
 - 暗光环境，XFeat特征点跟踪效果（绿色箭头为光流，红色箭头为重跟踪）
 <img src="support_files/lowExHighMove-Retrack.gif" alt="Retrack" width="600" height="300"/> 
-&nbsp;
+
+
 - 室内环境实机测试（Jetson Orin NX + RealSenseD435）
 <img src="support_files/VINS-PSL-GIF.gif" alt="VINS-PSL-indoor-test" width="600" height="300"/> 
 ##  Prerequisites
