@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(loop_fusion)
 
 set(CMAKE_BUILD_TYPE "Release")
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 #set(CMAKE_CXX_FLAGS "-std=c++11")
 #-DEIGEN_USE_MKL_ALL")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
     camera_models
     cv_bridge_454
     roslib
+    superpoint
     )
 
 set(OpenCV_DIR /usr/local/opencv-4.5.4/lib/cmake/opencv4)
@@ -27,6 +28,14 @@ find_package(Ceres REQUIRED)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 find_package(Eigen3)
+
+if(EXISTS "/usr/local/include/tensorrt") 
+    message(STATUS "tensorrt include directory: /usr/local/include/tensorrt")
+    link_directories(/usr/local/lib/tensorrt)
+    include_directories(/usr/local/include/tensorrt)
+else()
+    message(STATUS "external path for tensorrt not found")
+endif()
 
 include_directories(${catkin_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS}  ${EIGEN3_INCLUDE_DIR})
 
